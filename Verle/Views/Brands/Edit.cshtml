@@ -1,0 +1,83 @@
+﻿@model Verle.ViewModels.BrandFormViewModel
+
+@{
+    ViewData["Title"] = "Редактирование бренда";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<h4>Бренд</h4>
+
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-controller="Brands"
+              asp-action="Edit"
+              asp-route-id="@Model.Id"
+              method="post"
+              asp-antiforgery="true">
+
+            <div asp-validation-summary="ModelOnly"
+                 class="text-danger mb-3"></div>
+
+            <input type="hidden"
+                   asp-for="Id" />
+
+            <div class="mb-3">
+                <label asp-for="Name"
+                       class="form-label"></label>
+
+                <input asp-for="Name"
+                       class="form-control"
+                       maxlength="255" />
+
+                <span asp-validation-for="Name"
+                      class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelectedBrandGroupId"
+                       class="form-label"></label>
+
+                <select asp-for="SelectedBrandGroupId"
+                        asp-items="Model.BrandGroupOptions"
+                        class="form-select">
+                    <option value="">Без группы</option>
+                </select>
+
+                <span asp-validation-for="SelectedBrandGroupId"
+                      class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <a asp-controller="BrandGroups"
+                   asp-action="Create"
+                   target="_blank"
+                   rel="noopener">
+                    Добавить новую группу брендов
+                </a>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit"
+                        class="btn btn-primary">
+                    Сохранить
+                </button>
+
+                <a asp-controller="Brands"
+                   asp-action="Index"
+                   class="btn btn-secondary">
+                    Назад к списку
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync(
+            "_ValidationScriptsPartial");
+    }
+}

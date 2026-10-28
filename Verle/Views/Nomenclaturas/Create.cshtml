@@ -1,0 +1,199 @@
+﻿@model Verle.ViewModels.NomenclaturaFormViewModel
+
+@{
+    ViewData["Title"] = "Добавление номенклатуры";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<hr />
+
+<div class="row">
+    <div class="col-md-8 col-lg-6">
+        <form asp-controller="Nomenclaturas"
+              asp-action="Create"
+              asp-antiforgery="true"
+              method="post">
+
+            @* Общие ошибки формы и сохранения.
+            Ошибки отдельных полей выводятся рядом с ними. *@
+            <div asp-validation-summary="ModelOnly"
+                 class="text-danger mb-3"></div>
+
+            <h2 class="h5 mb-3">Основные данные</h2>
+
+            <div class="mb-3">
+                <label asp-for="Name"
+                       class="form-label"></label>
+
+                <input asp-for="Name"
+                       class="form-control"
+                       maxlength="200" />
+
+                <span asp-validation-for="Name"
+                      class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Id1C"
+                       class="form-label"></label>
+
+                <input asp-for="Id1C"
+                       class="form-control"
+                       maxlength="100"
+                       aria-describedby="id1c-help" />
+
+                <div id="id1c-help" class="form-text">
+                    Необязательный идентификатор номенклатуры из 1С.
+                </div>
+
+                <span asp-validation-for="Id1C"
+                      class="text-danger"></span>
+            </div>
+
+            <hr class="my-4" />
+
+            <h2 class="h5 mb-3">Классификация</h2>
+
+            <p class="text-muted">
+                Все классификации необязательны.
+                В каждом списке можно выбрать одно значение
+                или оставить пустой вариант.
+            </p>
+
+            @* Основной класс номенклатуры *@
+            <div class="mb-3">
+                <label asp-for="SelectedClassId"
+                       class="form-label">
+                    Класс номенклатуры
+                </label>
+
+                <select asp-for="SelectedClassId"
+                        asp-items="Model.ClassOptions"
+                        class="form-select">
+                    <option value="">Без классификации</option>
+                </select>
+
+                <span asp-validation-for="SelectedClassId"
+                      class="text-danger"></span>
+
+                <div class="mt-1">
+                    <a asp-controller="NomenclaturaClasses"
+                       asp-action="Create"
+                       target="_blank"
+                       rel="noopener">
+                        Добавить класс номенклатуры
+                        (в новой вкладке)
+                    </a>
+                </div>
+            </div>
+
+            @* Класс SKU *@
+            <div class="mb-3">
+                <label asp-for="SelectedSkuClassId"
+                       class="form-label">
+                    Класс SKU
+                </label>
+
+                <select asp-for="SelectedSkuClassId"
+                        asp-items="Model.SkuClassOptions"
+                        class="form-select">
+                    <option value="">Без классификации SKU</option>
+                </select>
+
+                <span asp-validation-for="SelectedSkuClassId"
+                      class="text-danger"></span>
+
+                <div class="mt-1">
+                    <a asp-controller="SkuClasses"
+                       asp-action="Create"
+                       target="_blank"
+                       rel="noopener">
+                        Добавить класс SKU
+                        (в новой вкладке)
+                    </a>
+                </div>
+            </div>
+
+            @* Тип продукта *@
+            <div class="mb-3">
+                <label asp-for="SelectedProductTypeId"
+                       class="form-label">
+                    Тип продукта
+                </label>
+
+                <select asp-for="SelectedProductTypeId"
+                        asp-items="Model.ProductTypeOptions"
+                        class="form-select">
+                    <option value="">Без типа продукта</option>
+                </select>
+
+                <span asp-validation-for="SelectedProductTypeId"
+                      class="text-danger"></span>
+
+                <div class="mt-1">
+                    <a asp-controller="ProductTypes"
+                       asp-action="Create"
+                       target="_blank"
+                       rel="noopener">
+                        Добавить тип продукта
+                        (в новой вкладке)
+                    </a>
+                </div>
+            </div>
+
+            @* Бренд *@
+            <div class="mb-3">
+                <label asp-for="SelectedBrandId"
+                       class="form-label">
+                    Бренд
+                </label>
+
+                <select asp-for="SelectedBrandId"
+                        asp-items="Model.BrandOptions"
+                        class="form-select">
+                    <option value="">Без бренда</option>
+                </select>
+
+                <span asp-validation-for="SelectedBrandId"
+                      class="text-danger"></span>
+
+                <div class="mt-1">
+                    <a asp-controller="Brands"
+                       asp-action="Create"
+                       target="_blank"
+                       rel="noopener">
+                        Добавить бренд
+                        (в новой вкладке)
+                    </a>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-4">
+                Если добавили значение справочника в новой вкладке,
+                оно появится в списке после повторной загрузки этой
+                формы. При обновлении страницы несохранённые данные
+                могут быть потеряны.
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                <button type="submit"
+                        class="btn btn-primary">
+                    Создать
+                </button>
+
+                <a asp-controller="Nomenclaturas"
+                   asp-action="Index"
+                   class="btn btn-outline-secondary">
+                    Назад к списку
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

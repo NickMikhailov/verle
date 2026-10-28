@@ -1,0 +1,79 @@
+﻿@model Verle.ViewModels.CounterpartGroupFormViewModel
+
+@{
+    ViewData["Title"] = "Добавление группы контрагентов";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<h4>Группа контрагентов</h4>
+
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-controller="CounterpartGroups"
+              asp-action="Create"
+              method="post"
+              asp-antiforgery="true">
+
+            <div asp-validation-summary="ModelOnly"
+                 class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="Name"
+                       class="form-label"></label>
+
+                <input asp-for="Name"
+                       class="form-control"
+                       maxlength="255" />
+
+                <span asp-validation-for="Name"
+                      class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelectedSalesChannelId"
+                       class="form-label"></label>
+
+                <select asp-for="SelectedSalesChannelId"
+                        asp-items="Model.SalesChannelOptions"
+                        class="form-select">
+                    <option value="">Без канала</option>
+                </select>
+
+                <span asp-validation-for="SelectedSalesChannelId"
+                      class="text-danger"></span>
+            </div>
+
+            <div class="mb-4">
+                <a asp-controller="SalesChannels"
+                   asp-action="Create"
+                   target="_blank"
+                   rel="noopener">
+                    Добавить новый канал продаж
+                </a>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit"
+                        class="btn btn-primary">
+                    Создать
+                </button>
+
+                <a asp-controller="CounterpartGroups"
+                   asp-action="Index"
+                   class="btn btn-secondary">
+                    Назад к списку
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync(
+            "_ValidationScriptsPartial");
+    }
+}

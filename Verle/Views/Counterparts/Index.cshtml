@@ -1,0 +1,97 @@
+﻿@model IEnumerable<Verle.Models.Counterpart>
+
+@{
+    ViewData["Title"] = "Контрагенты";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<p>
+    <a asp-action="Create"
+       class="btn btn-primary">
+        Добавить контрагента
+    </a>
+</p>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th scope="col">ID</th>
+                <th scope="col">ID в 1С</th>
+                <th scope="col">ИНН</th>
+                <th scope="col">Наименование</th>
+                <th scope="col">Группа контрагентов</th>
+                <th scope="col">Действия</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="6"
+                        class="text-center text-muted py-4">
+                        Контрагенты пока не добавлены.
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Id)
+                        </td>
+
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Id1C)
+                        </td>
+
+                        <td>
+                            @if (string.IsNullOrWhiteSpace(item.INN))
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                            else
+                            {
+                                @Html.DisplayFor(modelItem => item.INN)
+                            }
+                        </td>
+
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Name)
+                        </td>
+
+                        <td>
+                            @(item.CounterpartGroupLink?.CounterpartGroup?.Name ?? "—")
+                        </td>
+
+                        <td>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a asp-action="Edit"
+                                   asp-route-id="@item.Id"
+                                   class="btn btn-sm btn-outline-primary">
+                                    Изменить
+                                </a>
+
+                                <a asp-action="Details"
+                                   asp-route-id="@item.Id"
+                                   class="btn btn-sm btn-outline-secondary">
+                                    Подробнее
+                                </a>
+
+                                <a asp-action="Delete"
+                                   asp-route-id="@item.Id"
+                                   class="btn btn-sm btn-outline-danger">
+                                    Удалить
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>

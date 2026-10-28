@@ -1,0 +1,32 @@
+# Visual Studio
+.vs/
+*.user
+*.userosscache
+*.suo
+*.rsuser
+
+# Build results
+[Bb]in/
+[Oo]bj/
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+
+# ASP.NET local settings
+appsettings.Development.json
+appsettings.Local.json
+.env
+
+# Certificates and local secrets
+*.pfx
+*.p12
+secrets.json
+
+# Rider
+.idea/
+
+# Operating system
+.DS_Store
+Thumbs.db

@@ -1,0 +1,105 @@
+﻿@model Verle.ViewModels.CounterpartFormViewModel
+
+@{
+    ViewData["Title"] = "Редактирование контрагента";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<hr />
+
+<div class="row">
+    <div class="col-md-8 col-lg-6">
+        <form asp-controller="Counterparts"
+              asp-action="Edit"
+              asp-route-id="@Model.Id"
+              method="post"
+              asp-antiforgery="true">
+
+            <div asp-validation-summary="ModelOnly"
+                 class="text-danger mb-3"></div>
+
+            <input type="hidden"
+                   asp-for="Id" />
+
+            <div class="mb-3">
+                <label asp-for="Id1C"
+                       class="form-label"></label>
+
+                <input asp-for="Id1C"
+                       class="form-control"
+                       maxlength="100" />
+
+                <span asp-validation-for="Id1C"
+                      class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="INN"
+                       class="form-label"></label>
+
+                <input asp-for="INN"
+                       class="form-control"
+                       maxlength="12" />
+
+                <span asp-validation-for="INN"
+                      class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Name"
+                       class="form-label"></label>
+
+                <input asp-for="Name"
+                       class="form-control"
+                       maxlength="255" />
+
+                <span asp-validation-for="Name"
+                      class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="SelectedCounterpartGroupId"
+                       class="form-label"></label>
+
+                <select asp-for="SelectedCounterpartGroupId"
+                        asp-items="Model.CounterpartGroupOptions"
+                        class="form-select">
+                    <option value="">Без группы</option>
+                </select>
+
+                <span asp-validation-for="SelectedCounterpartGroupId"
+                      class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <a asp-controller="CounterpartGroups"
+                   asp-action="Create"
+                   target="_blank"
+                   rel="noopener">
+                    Добавить новую группу контрагентов
+                </a>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit"
+                        class="btn btn-primary">
+                    Сохранить
+                </button>
+
+                <a asp-controller="Counterparts"
+                   asp-action="Index"
+                   class="btn btn-secondary">
+                    Назад к списку
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync(
+            "_ValidationScriptsPartial");
+    }
+}
