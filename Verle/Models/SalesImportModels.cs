@@ -1,5 +1,6 @@
 ﻿namespace Verle.Models;
-
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using Verle.ViewModels;
 public class SaleImportRaw
 {
     public string? CounterpartId1C { get; set; }
@@ -69,6 +70,14 @@ public class SalesImportViewModel
 
     public List<UnknownReferenceViewModel> UnknownNomenclaturas { get; set; } = [];
 
+    // Общие списки вариантов для строк новых номенклатур.
+    [ValidateNever]
+    public NomenclaturaFormViewModel NomenclaturaOptions { get; set; }
+    = new();
+    // Общий список групп для строк новых контрагентов.
+    [ValidateNever]
+    public CounterpartFormViewModel CounterpartOptions { get; set; }
+        = new();
     public bool CanImport =>
         Errors.Count == 0 &&
         UnknownCounterparts.Count == 0 &&

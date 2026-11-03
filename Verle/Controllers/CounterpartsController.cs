@@ -330,6 +330,99 @@ namespace Verle.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // POST: Counterparts/CreateFromImport
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateFromImport(
+            [Bind("Id1C,Name,SelectedCounterpartGroupId")]
+    CounterpartFormViewModel model,
+            CancellationToken cancellationToken)
+        {
+            NormalizeModel(model);
+
+            ValidateRequiredFields(model);
+
+            await ValidateCounterpartGroupAsync(model);
+
+            var id1CExists = await _context.Counterparts
+                .AnyAsync(
+                    x => x.Id1C == model.Id1C,
+                    cancellationToken);
+
+            if (id1CExists)
+            {
+                ModelState.AddModelError(
+                    nameof(model.Id1C),
+                    "Такой ID из 1С уже существует. " +
+                    "Повторно проверьте файл продаж: " +
+                    "возможно, контрагент уже был добавлен.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return CounterpartImportValidationError();
+            }
+
+            var counterpart = new Counterpart
+            {
+                Id1C = model.Id1C,
+                Name = model.Name,
+
+                // В файле импорта ИНН не передаётся.
+                INN = null
+            };
+
+            // Используем существующую логику связи с группой.
+            ApplyCounterpartGroup(counterpart, model);
+
+            _context.Counterparts.Add(counterpart);
+
+            try
+            {
+                // Контрагент и связь с группой сохраняются
+                // одним вызовом SaveChangesAsync.
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException)
+            {
+                ModelState.AddModelError(
+                    string.Empty,
+                    "Не удалось сохранить контрагента. " +
+                    "Возможно, такой ID уже добавлен другим пользователем " +
+                    "или выбранная группа была изменена либо удалена. " +
+                    "Повторно проверьте файл. Если ошибка сохраняется, " +
+                    "обратитесь к администратору.");
+
+                return CounterpartImportValidationError();
+            }
+
+            return Json(new
+            {
+                success = true,
+                id = counterpart.Id
+            });
+        }
+
+        private IActionResult CounterpartImportValidationError()
+        {
+            var errors = ModelState
+                .Where(entry => entry.Value is { Errors.Count: > 0 })
+                .ToDictionary(
+                    entry => entry.Key,
+                    entry => entry.Value!.Errors
+                        .Select(error =>
+                            string.IsNullOrWhiteSpace(error.ErrorMessage)
+                                ? "Некорректное значение поля."
+                                : error.ErrorMessage)
+                        .Distinct()
+                        .ToArray());
+
+            return BadRequest(new
+            {
+                success = false,
+                errors
+            });
+        }
         private async Task LoadCounterpartGroupOptionsAsync(
             CounterpartFormViewModel model)
         {
