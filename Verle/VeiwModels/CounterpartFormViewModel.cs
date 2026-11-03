@@ -22,7 +22,7 @@ public class CounterpartFormViewModel
     [Display(Name = "Наименование")]
     public string Name { get; set; } = string.Empty;
 
-    [Display(Name = "Группа контрагентов")]
+    [Display(Name = "Клиент")]
     public int? SelectedCounterpartGroupId { get; set; }
 
     [ValidateNever]

@@ -20,69 +20,124 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link text-dark"
-                               asp-controller="Nomenclaturas"
+                               asp-area=""
+                               asp-controller="Home"
                                asp-action="Index">
-                                Номенклатура
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark"
-                               asp-controller="NomenclaturaClasses"
-                               asp-action="Index">
-                                Классы номенклатуры
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark"
-                               asp-controller="SkuClasses"
-                               asp-action="Index">
-                                Классы SKU
+                                Home
                             </a>
                         </li>
 
                         <li class="nav-item">
                             <a class="nav-link text-dark"
-                               asp-controller="ProductTypes"
-                               asp-action="Index">
-                                Типы продуктов
+                               asp-area=""
+                               asp-controller="Home"
+                               asp-action="Privacy">
+                                Privacy
                             </a>
                         </li>
 
-                        <li class="nav-item">
-                            <a class="nav-link text-dark"
-                               asp-controller="Brands"
-                               asp-action="Index">
-                                Бренды
+                        <!-- Меню номенклатуры -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-dark"
+                               href="#"
+                               id="nomenclatureDropdown"
+                               role="button"
+                               data-bs-toggle="dropdown"
+                               aria-expanded="false">
+                                Номенклатуры
                             </a>
+
+                            <ul class="dropdown-menu"
+                                aria-labelledby="nomenclatureDropdown">
+
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-controller="Nomenclaturas"
+                                       asp-action="Index">
+                                        Номенклатура
+                                    </a>
+                                </li>
+
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-controller="NomenclaturaClasses"
+                                       asp-action="Index">
+                                        Классы номенклатуры
+                                    </a>
+                                </li>
+
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-controller="SkuClasses"
+                                       asp-action="Index">
+                                        Классы SKU
+                                    </a>
+                                </li>
+
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-controller="ProductTypes"
+                                       asp-action="Index">
+                                        Типы продуктов
+                                    </a>
+                                </li>
+
+                                <li>
+                                    <hr class="dropdown-divider" />
+                                </li>
+
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-controller="Brands"
+                                       asp-action="Index">
+                                        Бренды
+                                    </a>
+                                </li>
+
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-controller="BrandGroups"
+                                       asp-action="Index">
+                                        Группы брендов
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link"
-                               asp-controller="BrandGroups"
-                               asp-action="Index">
-                                Группы брендов
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark"
-                               asp-controller="Counterparts"
-                               asp-action="Index">
+
+                        <!-- Меню контрагентов -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-dark"
+                               href="#"
+                               id="counterpartsDropdown"
+                               role="button"
+                               data-bs-toggle="dropdown"
+                               aria-expanded="false">
                                 Контрагенты
                             </a>
+
+                            <ul class="dropdown-menu"
+                                aria-labelledby="counterpartsDropdown">
+
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-controller="Counterparts"
+                                       asp-action="Index">
+                                        Все контрагенты
+                                    </a>
+                                </li>
+
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-controller="CounterpartGroups"
+                                       asp-action="Index">
+                                        Группы контрагентов
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark"
-                               asp-controller="CounterpartGroups"
-                               asp-action="Index">
-                                Группы контрагентов
-                            </a>
-                        </li>
+
+                        <!-- Каналы продаж -->
                         <li class="nav-item">
                             <a class="nav-link text-dark"
                                asp-controller="SalesChannels"
@@ -90,20 +145,37 @@
                                 Каналы продаж
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark"
-                               asp-controller="Sales"
-                               asp-action="Index">
+
+                        <!-- Меню продаж -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-dark"
+                               href="#"
+                               id="salesDropdown"
+                               role="button"
+                               data-bs-toggle="dropdown"
+                               aria-expanded="false">
                                 Продажи
                             </a>
-                        </li>
 
-                        <li class="nav-item">
-                            <a class="nav-link text-dark"
-                               asp-controller="Sales"
-                               asp-action="Import">
-                                Импорт продаж
-                            </a>
+                            <ul class="dropdown-menu"
+                                aria-labelledby="salesDropdown">
+
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-controller="Sales"
+                                       asp-action="Index">
+                                        Все продажи
+                                    </a>
+                                </li>
+
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-controller="Sales"
+                                       asp-action="Import">
+                                        Импорт продаж
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                     </ul>
                 </div>
