@@ -41,7 +41,11 @@ namespace Verle.Data
         public DbSet<SalesChannel> SalesChannels => 
             Set<SalesChannel>();
         public DbSet<CounterpartGroupSalesChannelLink> CounterpartGroupSalesChannelLinks =>
-            Set<CounterpartGroupSalesChannelLink>(); 
+            Set<CounterpartGroupSalesChannelLink>();
+        public DbSet<Sale> Sales =>
+            Set<Sale>();
+        
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -183,6 +187,106 @@ namespace Verle.Data
                     .HasMaxLength(255)
                     .IsRequired();
             });
+            modelBuilder.Entity<Sale>(entity =>
+            {
+                entity.ToTable("sales");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.CounterpartId)
+                    .HasColumnName("counterpartId")
+                    .IsRequired();
+
+                entity.Property(x => x.NomenclaturaId)
+                    .HasColumnName("nomenclaturaId")
+                    .IsRequired();
+
+                entity.Property(x => x.CounterpartId1C)
+                    .HasColumnName("counterpartId1C")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.CounterpartName1C)
+                    .HasColumnName("counterpartName1C")
+                    .HasMaxLength(255)
+                    .IsRequired();
+
+                entity.Property(x => x.Date)
+                    .HasColumnName("date")
+                    .HasColumnType("date")
+                    .IsRequired();
+
+                entity.Property(x => x.Document)
+                    .HasColumnName("document")
+                    .HasMaxLength(500)
+                    .IsRequired();
+
+                entity.Property(x => x.NomenclaturaId1C)
+                    .HasColumnName("nomenclaturaId1C")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.NomenclaturaName1C)
+                    .HasColumnName("nomenclaturaName1C")
+                    .HasMaxLength(255)
+                    .IsRequired();
+
+                entity.Property(x => x.Quantity)
+                    .HasColumnName("quantity")
+                    .HasColumnType("double precision")
+                    .IsRequired();
+
+                entity.Property(x => x.Revenue)
+                    .HasColumnName("revenue")
+                    .HasColumnType("double precision")
+                    .IsRequired();
+
+                entity.Property(x => x.Cost)
+                    .HasColumnName("cost")
+                    .HasColumnType("double precision")
+                    .IsRequired();
+
+                entity.Property(x => x.GrossProfit)
+                    .HasColumnName("grossProfit")
+                    .HasColumnType("double precision")
+                    .IsRequired();
+
+                entity.Property(x => x.Margin)
+                    .HasColumnName("margin")
+                    .HasColumnType("double precision")
+                    .IsRequired();
+
+                entity.HasOne(x => x.Counterpart)
+                    .WithMany()
+                    .HasForeignKey(x => x.CounterpartId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.Nomenclatura)
+                    .WithMany()
+                    .HasForeignKey(x => x.NomenclaturaId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => x.CounterpartId);
+
+                entity.HasIndex(x => x.NomenclaturaId);
+
+                entity.HasIndex(x => x.Date);
+                // Уникальное сочетание:
+                // контрагент из 1С + документ + номенклатура из 1С.
+                entity.HasIndex(x => new
+                {
+                    x.CounterpartId1C,
+                    x.Document,
+                    x.NomenclaturaId1C
+                })
+                    .IsUnique()
+                    .HasDatabaseName(
+                        "UX_sales_counterpartId1C_document_nomenclaturaId1C");
+            });
             // Основной класс номенклатуры.
             modelBuilder.Entity<NomenclaturaClassLink>(entity =>
             {
@@ -207,6 +311,22 @@ namespace Verle.Data
                     .WithMany(x => x.NomenclaturaLinks)
                     .HasForeignKey(x => x.NomenclaturaClassId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+            // Класс номенклатуры
+            modelBuilder.Entity<NomenclaturaClass>(entity =>
+            {
+                entity.ToTable("nomenclaturaClass");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.Name)
+                    .HasColumnName("name")
+                    .HasMaxLength(255)
+                    .IsRequired();
             });
             // Класс SKU.
             modelBuilder.Entity<NomenclaturaSkuClassLink>(entity =>
@@ -311,6 +431,36 @@ namespace Verle.Data
                     .HasForeignKey(x => x.BrandGroupId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+            // Группа контрагента.
+            modelBuilder.Entity<CounterpartCounterpartGroupLink>(entity =>
+            {
+                entity.ToTable("counterpartCounterpartGroup");
+
+                // Один контрагент может иметь не более одной группы.
+                entity.HasKey(x => x.CounterpartId);
+
+                entity.Property(x => x.CounterpartId)
+                    .HasColumnName("counterpartId")
+                    .ValueGeneratedNever();
+
+                entity.Property(x => x.CounterpartGroupId)
+                    .HasColumnName("counterpartGroupId")
+                    .IsRequired();
+
+                // Counterpart 1 -> 0..1 связующая запись.
+                entity.HasOne(x => x.Counterpart)
+                    .WithOne(x => x.CounterpartGroupLink)
+                    .HasForeignKey<CounterpartCounterpartGroupLink>(
+                        x => x.CounterpartId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // CounterpartGroup 1 -> много связующих записей.
+                entity.HasOne(x => x.CounterpartGroup)
+                    .WithMany(x => x.CounterpartLinks)
+                    .HasForeignKey(x => x.CounterpartGroupId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
             // Каналы продаж
             modelBuilder.Entity<CounterpartGroupSalesChannelLink>(entity =>
             {

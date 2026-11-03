@@ -1,0 +1,133 @@
+﻿@model Verle.Models.SalesImportViewModel
+
+@{
+    ViewData["Title"] = "Импорт продаж";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<p>
+    Выберите CSV-файл, выгруженный из 1С.
+</p>
+
+<form asp-controller="Sales"
+      asp-action="Import"
+      asp-antiforgery="true"
+      method="post"
+      enctype="multipart/form-data">
+
+    <div asp-validation-summary="All"
+         class="text-danger mb-3"></div>
+
+    <div class="mb-3">
+        <label for="sales-file"
+               class="form-label">
+            CSV-файл
+        </label>
+
+        <input type="file"
+               id="sales-file"
+               name="file"
+               accept=".csv"
+               class="form-control"
+               required />
+    </div>
+
+    <button type="submit"
+            class="btn btn-primary">
+        Проверить и импортировать
+    </button>
+</form>
+
+@if (Model.Errors.Any())
+{
+    <div class="alert alert-danger mt-4">
+        <h4>Ошибки файла</h4>
+
+        <ul>
+            @foreach (var error in Model.Errors)
+            {
+                <li>@error</li>
+            }
+        </ul>
+    </div>
+}
+
+@if (Model.UnknownCounterparts.Any())
+{
+    <div class="alert alert-warning mt-4">
+        <h4>Новые контрагенты</h4>
+
+        <p>
+            Импорт остановлен. Добавьте эти контрагенты
+            в справочник, затем повторно загрузите файл.
+        </p>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Код 1С</th>
+                    <th>Наименование из 1С</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.UnknownCounterparts)
+                {
+                    <tr>
+                        <td>@item.Id1C</td>
+                        <td>@item.Name1C</td>
+                        <td>
+                            <a asp-controller="Counterparts"
+                               asp-action="Create"
+                               asp-route-id1C="@item.Id1C"
+                               asp-route-name="@item.Name1C">
+                                Добавить
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (Model.UnknownNomenclaturas.Any())
+{
+    <div class="alert alert-warning mt-4">
+        <h4>Новые номенклатуры</h4>
+
+        <p>
+            Добавьте номенклатуры в справочник.
+            Тип продукта, класс SKU, бренд и остальные
+            атрибуты укажите самостоятельно.
+        </p>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Код 1С</th>
+                    <th>Наименование из 1С</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.UnknownNomenclaturas)
+                {
+                    <tr>
+                        <td>@item.Id1C</td>
+                        <td>@item.Name1C</td>
+                        <td>
+                            <a asp-controller="Nomenclaturas"
+                               asp-action="Create"
+                               asp-route-id1C="@item.Id1C"
+                               asp-route-name="@item.Name1C">
+                                Добавить
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

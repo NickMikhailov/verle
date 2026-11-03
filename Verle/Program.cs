@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Verle.Data;
+using Verle.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,10 @@ var connectionString =
 // Подключение PostgreSQL.
 builder.Services.AddDbContext<VerleContext>(options =>
     options.UseNpgsql(connectionString));
+
+//Пользовательские сервисы
+builder.Services.AddScoped<SalesImportService>();
+
 
 var app = builder.Build();
 

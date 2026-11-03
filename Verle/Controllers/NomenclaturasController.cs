@@ -82,10 +82,18 @@ namespace Verle.Controllers
         }
 
         // GET: Nomenclaturas/Create
-        public async Task<IActionResult> Create()
+        [HttpGet]
+        public async Task<IActionResult> Create(
+            string? id1C,
+            string? name)
         {
-            var model = new NomenclaturaFormViewModel();
+            var model = new NomenclaturaFormViewModel
+            {
+                Id1C = id1C?.Trim() ?? string.Empty,
+                Name = name?.Trim() ?? string.Empty
+            };
 
+            // Загружаем классы, классы SKU, типы продукта и бренды.
             await FillOptionsAsync(model);
 
             return View(model);
