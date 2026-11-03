@@ -1,0 +1,113 @@
+﻿@model IEnumerable<Verle.Models.Sale>
+
+@{
+    ViewData["Title"] = "Продажи";
+
+    var culture = System.Globalization.CultureInfo
+        .GetCultureInfo("ru-RU");
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="mb-0">@ViewData["Title"]</h1>
+
+    <a asp-controller="Sales"
+       asp-action="Import"
+       class="btn btn-primary">
+        Импорт продаж
+    </a>
+</div>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="alert">
+        @successMessage
+    </div>
+}
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th scope="col">Дата</th>
+                <th scope="col">Документ</th>
+                <th scope="col">Контрагент</th>
+                <th scope="col">Номенклатура</th>
+                <th scope="col" class="text-end">Количество</th>
+                <th scope="col" class="text-end">Выручка</th>
+                <th scope="col" class="text-end">Себестоимость</th>
+                <th scope="col" class="text-end">Валовая прибыль</th>
+                <th scope="col" class="text-end">Маржа, %</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="9"
+                        class="text-center text-muted py-4">
+                        Продажи пока не загружены.
+                        Для загрузки CSV нажмите «Импорт продаж».
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td class="text-nowrap">
+                            @item.Date.ToString("dd.MM.yyyy", culture)
+                        </td>
+
+                        <td>
+                            @item.Document
+                        </td>
+
+                        <td>
+                            <div>
+                                @(item.Counterpart?.Name
+                                    ?? item.CounterpartName1C)
+                            </div>
+
+                            <div class="small text-muted">
+                                Код 1С: @item.CounterpartId1C
+                            </div>
+                        </td>
+
+                        <td>
+                            <div>
+                                @(item.Nomenclatura?.Name
+                                    ?? item.NomenclaturaName1C)
+                            </div>
+
+                            <div class="small text-muted">
+                                Код 1С: @item.NomenclaturaId1C
+                            </div>
+                        </td>
+
+                        <td class="text-end text-nowrap">
+                            @item.Quantity.ToString("N0", culture)
+                        </td>
+
+                        <td class="text-end text-nowrap">
+                            @item.Revenue.ToString("N2", culture)
+                        </td>
+
+                        <td class="text-end text-nowrap">
+                            @item.Cost.ToString("N2", culture)
+                        </td>
+
+                        <td class="text-end text-nowrap">
+                            @item.GrossProfit.ToString("N2", culture)
+                        </td>
+
+                        <td class="text-end text-nowrap">
+                            @item.Margin.ToString("N2", culture)
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>

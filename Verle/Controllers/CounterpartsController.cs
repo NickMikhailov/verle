@@ -54,9 +54,15 @@ namespace Verle.Controllers
 
         // GET: Counterparts/Create
         [HttpGet]
-        public async Task<IActionResult> Create()
+        public async Task<IActionResult> Create(
+            string? id1C,
+            string? name)
         {
-            var model = new CounterpartFormViewModel();
+            var model = new CounterpartFormViewModel
+            {
+                Id1C = id1C?.Trim() ?? string.Empty,
+                Name = name?.Trim() ?? string.Empty
+            };
 
             await LoadCounterpartGroupOptionsAsync(model);
 
