@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Verle.Data;
 using Verle.Models;
 using Verle.Services;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace Verle.Controllers;
 
@@ -63,7 +64,9 @@ public class SalesController : Controller
                 "Не удалось обработать форму загрузки. " +
                 "Выберите CSV-файл и повторите отправку.");
 
-            return View(result);
+            return await ImportViewAsync(
+                result,
+                cancellationToken);
         }
 
         if (file is null || file.Length == 0)
@@ -71,7 +74,9 @@ public class SalesController : Controller
             result.Errors.Add(
                 "Выберите непустой CSV-файл для импорта.");
 
-            return View(result);
+            return await ImportViewAsync(
+                result,
+                cancellationToken);
         }
 
         try
@@ -84,7 +89,9 @@ public class SalesController : Controller
 
             if (!result.CanImport)
             {
-                return View(result);
+                return await ImportViewAsync(
+                    result,
+                    cancellationToken);
             }
 
             // Сервис повторно проверяет актуальность данных
@@ -147,6 +154,81 @@ public class SalesController : Controller
                 "обратитесь к администратору.");
         }
 
-        return View(result);
+        return await ImportViewAsync(
+            result,
+            cancellationToken);
+    }
+    private async Task<IActionResult> ImportViewAsync(
+    SalesImportViewModel model,
+    CancellationToken cancellationToken)
+    {
+        // Загружаем группы, только если есть неизвестные контрагенты.
+        if (model.UnknownCounterparts.Count > 0)
+        {
+            model.CounterpartOptions.CounterpartGroupOptions =
+                await _context.CounterpartGroups
+                    .AsNoTracking()
+                    .OrderBy(x => x.Name)
+                    .ThenBy(x => x.Id)
+                    .Select(x => new SelectListItem
+                    {
+                        Value = x.Id.ToString(),
+                        Text = x.Name
+                    })
+                    .ToListAsync(cancellationToken);
+        }
+
+        // Загружаем классификации, только если есть
+        // неизвестные номенклатуры.
+        if (model.UnknownNomenclaturas.Count > 0)
+        {
+            var options = model.NomenclaturaOptions;
+
+            options.ClassOptions = await _context.NomenclaturaClasses
+                .AsNoTracking()
+                .OrderBy(x => x.Name)
+                .ThenBy(x => x.Id)
+                .Select(x => new SelectListItem
+                {
+                    Value = x.Id.ToString(),
+                    Text = x.Name
+                })
+                .ToListAsync(cancellationToken);
+
+            options.SkuClassOptions = await _context.SkuClasses
+                .AsNoTracking()
+                .OrderBy(x => x.Name)
+                .ThenBy(x => x.Id)
+                .Select(x => new SelectListItem
+                {
+                    Value = x.Id.ToString(),
+                    Text = x.Name
+                })
+                .ToListAsync(cancellationToken);
+
+            options.ProductTypeOptions = await _context.ProductTypes
+                .AsNoTracking()
+                .OrderBy(x => x.Name)
+                .ThenBy(x => x.Id)
+                .Select(x => new SelectListItem
+                {
+                    Value = x.Id.ToString(),
+                    Text = x.Name
+                })
+                .ToListAsync(cancellationToken);
+
+            options.BrandOptions = await _context.Brands
+                .AsNoTracking()
+                .OrderBy(x => x.Name)
+                .ThenBy(x => x.Id)
+                .Select(x => new SelectListItem
+                {
+                    Value = x.Id.ToString(),
+                    Text = x.Name
+                })
+                .ToListAsync(cancellationToken);
+        }
+
+        return View("Import", model);
     }
 }

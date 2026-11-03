@@ -150,6 +150,91 @@ namespace Verle.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // POST: Nomenclaturas/CreateFromImport
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateFromImport(
+            [Bind(
+        "Name," +
+        "Id1C," +
+        "SelectedClassId," +
+        "SelectedSkuClassId," +
+        "SelectedProductTypeId," +
+        "SelectedBrandId")]
+        NomenclaturaFormViewModel model)
+        {
+            // Та же проверка, что используется на странице Create.
+            await ValidateFormAsync(model);
+
+            if (!ModelState.IsValid)
+            {
+                return CreateFromImportErrors(
+                    StatusCodes.Status400BadRequest);
+            }
+
+            var item = new Nomenclatura
+            {
+                Name = NormalizeName(model.Name),
+                Id1C = NormalizeId1C(model.Id1C)!
+            };
+
+            // То же назначение классификаций, что и в Create.
+            ApplyClassifications(item, model);
+
+            _context.Nomenclaturas.Add(item);
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                // Используем существующую обработку ошибок,
+                // включая конфликт при одновременном добавлении.
+                await AddSaveErrorAsync(
+                    exception,
+                    model,
+                    currentId: null);
+
+                if (ModelState.IsValid)
+                {
+                    ModelState.AddModelError(
+                        string.Empty,
+                        "Не удалось сохранить номенклатуру.");
+                }
+
+                return CreateFromImportErrors(
+                    StatusCodes.Status409Conflict);
+            }
+
+            // Вместо перехода на другую страницу возвращаем JSON.
+            return Json(new
+            {
+                success = true,
+                id = item.Id
+            });
+        }
+        private IActionResult CreateFromImportErrors(int statusCode)
+        {
+            var errors = ModelState
+                .Where(entry =>
+                    entry.Value is not null &&
+                    entry.Value.Errors.Count > 0)
+                .ToDictionary(
+                    entry => entry.Key,
+                    entry => entry.Value!.Errors
+                        .Select(error =>
+                            string.IsNullOrWhiteSpace(error.ErrorMessage)
+                                ? "Некорректное значение поля."
+                                : error.ErrorMessage)
+                        .ToArray());
+
+            return StatusCode(statusCode, new
+            {
+                success = false,
+                errors
+            });
+        }
         // GET: Nomenclaturas/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {

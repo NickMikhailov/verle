@@ -8,9 +8,11 @@
 
 <p>
     Выберите CSV-файл, выгруженный из 1С.
+    Перед сохранением продаж файл будет проверен.
 </p>
 
-<form asp-controller="Sales"
+<form id="sales-import-form"
+      asp-controller="Sales"
       asp-action="Import"
       asp-antiforgery="true"
       method="post"
@@ -30,21 +32,42 @@
                name="file"
                accept=".csv"
                class="form-control"
+               aria-describedby="sales-file-help"
                required />
+
+        <div id="sales-file-help"
+             class="form-text">
+            После проверки с ошибками файл необходимо выбрать повторно.
+        </div>
     </div>
 
-    <button type="submit"
+    <button id="sales-import-submit"
+            type="submit"
             class="btn btn-primary">
         Проверить и импортировать
     </button>
+
+    <div id="sales-import-status"
+         class="small text-muted mt-2"
+         role="status"
+         aria-live="polite"></div>
 </form>
+
+@if (Model.RowCount > 0)
+{
+    <div class="alert alert-info mt-4">
+        Строк в проверенном файле:
+        <strong>@Model.RowCount</strong>.
+        Это не количество сохранённых продаж.
+    </div>
+}
 
 @if (Model.Errors.Any())
 {
     <div class="alert alert-danger mt-4">
-        <h4>Ошибки файла</h4>
+        <h4>Ошибки обработки файла</h4>
 
-        <ul>
+        <ul class="mb-0">
             @foreach (var error in Model.Errors)
             {
                 <li>@error</li>
@@ -59,36 +82,100 @@
         <h4>Новые контрагенты</h4>
 
         <p>
-            Импорт остановлен. Добавьте эти контрагенты
-            в справочник, затем повторно загрузите файл.
+            Выберите группу и нажмите «Добавить»
+            в соответствующей строке. Контрагент будет
+            сохранён без перехода на другую страницу.
+            При необходимости можно оставить «Без группы».
         </p>
 
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Код 1С</th>
-                    <th>Наименование из 1С</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in Model.UnknownCounterparts)
-                {
+        <p>
+            Эти кнопки добавляют только записи в справочник.
+            ИНН можно заполнить позже через редактирование контрагента.
+            Для сохранения продаж после добавления недостающих
+            записей повторно выберите CSV-файл и нажмите
+            «Проверить и импортировать».
+        </p>
+
+        <div id="counterparts-progress"
+             class="mb-3"
+             role="status"
+             aria-live="polite">
+            Добавлено на этой странице:
+            0 из @Model.UnknownCounterparts.Count.
+        </div>
+
+        <noscript>
+            <div class="alert alert-danger">
+                Для добавления контрагентов прямо в таблице
+                необходимо включить JavaScript в браузере.
+            </div>
+        </noscript>
+
+        <div class="table-responsive">
+            <table id="new-counterparts-table"
+                   class="table table-bordered align-middle mb-0"
+                   data-create-url="@Url.Action("CreateFromImport", "Counterparts")">
+
+                <thead>
                     <tr>
-                        <td>@item.Id1C</td>
-                        <td>@item.Name1C</td>
-                        <td>
-                            <a asp-controller="Counterparts"
-                               asp-action="Create"
-                               asp-route-id1C="@item.Id1C"
-                               asp-route-name="@item.Name1C">
-                                Добавить
-                            </a>
-                        </td>
+                        <th scope="col">Код 1С</th>
+                        <th scope="col">Наименование из 1С</th>
+                        <th scope="col">Группа контрагентов</th>
+                        <th scope="col">Действие</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+
+                <tbody>
+                    @foreach (var item in Model.UnknownCounterparts)
+                    {
+                        <tr class="js-reference-row">
+                            <td>
+                                @item.Id1C
+
+                                <input type="hidden"
+                                       name="Id1C"
+                                       value="@item.Id1C" />
+                            </td>
+
+                            <td>
+                                @item.Name1C
+
+                                <input type="hidden"
+                                       name="Name"
+                                       value="@item.Name1C" />
+                            </td>
+
+                            <td>
+                                <select name="SelectedCounterpartGroupId"
+                                        class="form-select form-select-sm"
+                                        aria-label="Группа контрагентов для @item.Id1C">
+
+                                    <option value="">Без группы</option>
+
+                                    @foreach (var option in Model.CounterpartOptions.CounterpartGroupOptions)
+                                    {
+                                        <option value="@option.Value">
+                                            @option.Text
+                                        </option>
+                                    }
+                                </select>
+                            </td>
+
+                            <td>
+                                <button type="button"
+                                        class="btn btn-primary btn-sm js-add-reference">
+                                    Добавить
+                                </button>
+
+                                <div class="js-row-status small mt-2"
+                                     role="status"
+                                     aria-live="polite"></div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     </div>
 }
 
@@ -98,36 +185,490 @@
         <h4>Новые номенклатуры</h4>
 
         <p>
-            Добавьте номенклатуры в справочник.
-            Тип продукта, класс SKU, бренд и остальные
-            атрибуты укажите самостоятельно.
+            Выберите классификации и нажмите «Добавить»
+            в соответствующей строке. Номенклатура будет
+            сохранена без перехода на другую страницу.
         </p>
 
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Код 1С</th>
-                    <th>Наименование из 1С</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in Model.UnknownNomenclaturas)
-                {
+        <p>
+            Эти кнопки добавляют только записи в справочник.
+            Для сохранения продаж после добавления недостающих
+            записей повторно выберите CSV-файл и нажмите
+            «Проверить и импортировать».
+        </p>
+
+        <div id="nomenclaturas-progress"
+             class="mb-3"
+             role="status"
+             aria-live="polite">
+            Добавлено на этой странице:
+            0 из @Model.UnknownNomenclaturas.Count.
+        </div>
+
+        <noscript>
+            <div class="alert alert-danger">
+                Для добавления номенклатур прямо в таблице
+                необходимо включить JavaScript в браузере.
+            </div>
+        </noscript>
+
+        <div class="table-responsive">
+            <table id="new-nomenclaturas-table"
+                   class="table table-bordered align-middle mb-0"
+                   data-create-url="@Url.Action("CreateFromImport", "Nomenclaturas")">
+
+                <thead>
                     <tr>
-                        <td>@item.Id1C</td>
-                        <td>@item.Name1C</td>
-                        <td>
-                            <a asp-controller="Nomenclaturas"
-                               asp-action="Create"
-                               asp-route-id1C="@item.Id1C"
-                               asp-route-name="@item.Name1C">
-                                Добавить
-                            </a>
-                        </td>
+                        <th scope="col">Код 1С</th>
+                        <th scope="col">Наименование из 1С</th>
+                        <th scope="col">Класс номенклатуры</th>
+                        <th scope="col">Класс SKU</th>
+                        <th scope="col">Тип продукта</th>
+                        <th scope="col">Бренд</th>
+                        <th scope="col">Действие</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+
+                <tbody>
+                    @foreach (var item in Model.UnknownNomenclaturas)
+                    {
+                        <tr class="js-reference-row">
+                            <td>
+                                @item.Id1C
+
+                                <input type="hidden"
+                                       name="Id1C"
+                                       value="@item.Id1C" />
+                            </td>
+
+                            <td>
+                                @item.Name1C
+
+                                <input type="hidden"
+                                       name="Name"
+                                       value="@item.Name1C" />
+                            </td>
+
+                            <td>
+                                <select name="SelectedClassId"
+                                        class="form-select form-select-sm"
+                                        aria-label="Класс номенклатуры для @item.Id1C">
+
+                                    <option value="">— Не выбран —</option>
+
+                                    @foreach (var option in Model.NomenclaturaOptions.ClassOptions)
+                                    {
+                                        <option value="@option.Value">
+                                            @option.Text
+                                        </option>
+                                    }
+                                </select>
+                            </td>
+
+                            <td>
+                                <select name="SelectedSkuClassId"
+                                        class="form-select form-select-sm"
+                                        aria-label="Класс SKU для @item.Id1C">
+
+                                    <option value="">— Не выбран —</option>
+
+                                    @foreach (var option in Model.NomenclaturaOptions.SkuClassOptions)
+                                    {
+                                        <option value="@option.Value">
+                                            @option.Text
+                                        </option>
+                                    }
+                                </select>
+                            </td>
+
+                            <td>
+                                <select name="SelectedProductTypeId"
+                                        class="form-select form-select-sm"
+                                        aria-label="Тип продукта для @item.Id1C">
+
+                                    <option value="">— Не выбран —</option>
+
+                                    @foreach (var option in Model.NomenclaturaOptions.ProductTypeOptions)
+                                    {
+                                        <option value="@option.Value">
+                                            @option.Text
+                                        </option>
+                                    }
+                                </select>
+                            </td>
+
+                            <td>
+                                <select name="SelectedBrandId"
+                                        class="form-select form-select-sm"
+                                        aria-label="Бренд для @item.Id1C">
+
+                                    <option value="">— Не выбран —</option>
+
+                                    @foreach (var option in Model.NomenclaturaOptions.BrandOptions)
+                                    {
+                                        <option value="@option.Value">
+                                            @option.Text
+                                        </option>
+                                    }
+                                </select>
+                            </td>
+
+                            <td>
+                                <button type="button"
+                                        class="btn btn-primary btn-sm js-add-reference">
+                                    Добавить
+                                </button>
+
+                                <div class="js-row-status small mt-2"
+                                     role="status"
+                                     aria-live="polite"></div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     </div>
+}
+
+@section Scripts
+{
+    <script>
+        (() => {
+            "use strict";
+
+            const importForm = document.getElementById(
+                "sales-import-form");
+
+            const importButton = document.getElementById(
+                "sales-import-submit");
+
+            const importStatus = document.getElementById(
+                "sales-import-status");
+
+            const tokenInput = importForm?.querySelector(
+                'input[name="__RequestVerificationToken"]');
+
+            const configurations = [
+                {
+                    tableId: "new-counterparts-table",
+                    progressId: "counterparts-progress",
+                    successMessage: "Контрагент сохранён.",
+                    failureMessage: "Не удалось сохранить контрагента.",
+                    completeMessage:
+                        "Все контрагенты из этой таблицы добавлены."
+                },
+                {
+                    tableId: "new-nomenclaturas-table",
+                    progressId: "nomenclaturas-progress",
+                    successMessage: "Номенклатура сохранена.",
+                    failureMessage: "Не удалось сохранить номенклатуру.",
+                    completeMessage:
+                        "Все номенклатуры из этой таблицы добавлены."
+                }
+            ];
+
+            const tables = configurations
+                .map(configuration => {
+                    const table = document.getElementById(
+                        configuration.tableId);
+
+                    if (!table) {
+                        return null;
+                    }
+
+                    return {
+                        ...configuration,
+                        table,
+                        progress: document.getElementById(
+                            configuration.progressId),
+                        rows: Array.from(
+                            table.querySelectorAll(".js-reference-row"))
+                    };
+                })
+                .filter(configuration => configuration !== null);
+
+            // Общий счётчик для обеих таблиц.
+            let pendingRequests = 0;
+
+            function updateImportState() {
+                const isSaving = pendingRequests > 0;
+
+                if (importButton) {
+                    importButton.disabled = isSaving;
+                }
+
+                if (importStatus) {
+                    importStatus.textContent = isSaving
+                        ? "Дождитесь завершения сохранения записей в справочники."
+                        : "";
+                }
+            }
+
+            function updateProgress() {
+                const allSaved = tables.length > 0 &&
+                    tables.every(configuration =>
+                        configuration.rows.every(
+                            row => row.dataset.saved === "true"));
+
+                for (const configuration of tables) {
+                    if (!configuration.progress) {
+                        continue;
+                    }
+
+                    const savedCount = configuration.rows.filter(
+                        row => row.dataset.saved === "true"
+                    ).length;
+
+                    let message =
+                        `Добавлено на этой странице: ${savedCount} ` +
+                        `из ${configuration.rows.length}.`;
+
+                    if (savedCount === configuration.rows.length) {
+                        message += " " + configuration.completeMessage;
+                    }
+
+                    if (allSaved) {
+                        message +=
+                            " Все недостающие записи из таблиц добавлены. " +
+                            "Повторно выберите CSV-файл и запустите импорт.";
+                    }
+
+                    configuration.progress.textContent = message;
+                }
+            }
+
+            function showRowMessage(status, message, isError) {
+                status.replaceChildren();
+
+                status.classList.toggle("text-danger", isError);
+                status.classList.toggle("text-success", !isError);
+
+                status.textContent = message;
+            }
+
+            function showRowErrors(status, messages) {
+                status.replaceChildren();
+
+                status.classList.add("text-danger");
+                status.classList.remove("text-success");
+
+                const list = document.createElement("ul");
+                list.className = "mb-0 ps-3";
+
+                for (const message of messages) {
+                    const item = document.createElement("li");
+                    item.textContent = message;
+                    list.appendChild(item);
+                }
+
+                status.appendChild(list);
+            }
+
+            function getServerErrors(result) {
+                if (!result ||
+                    !result.errors ||
+                    typeof result.errors !== "object") {
+                    return [];
+                }
+
+                const messages = Object.values(result.errors)
+                    .flat()
+                    .filter(value =>
+                        typeof value === "string" &&
+                        value.trim().length > 0);
+
+                return Array.from(new Set(messages));
+            }
+
+            importForm?.addEventListener("submit", event => {
+                if (pendingRequests > 0) {
+                    event.preventDefault();
+                    updateImportState();
+                }
+            });
+
+            for (const configuration of tables) {
+                const table = configuration.table;
+
+                table.addEventListener("click", async event => {
+                    if (!(event.target instanceof Element)) {
+                        return;
+                    }
+
+                    const button = event.target.closest(
+                        ".js-add-reference");
+
+                    if (!button || button.disabled) {
+                        return;
+                    }
+
+                    const row = button.closest(
+                        ".js-reference-row");
+
+                    if (!row ||
+                        row.dataset.saved === "true" ||
+                        row.getAttribute("aria-busy") === "true") {
+                        return;
+                    }
+
+                    const status = row.querySelector(
+                        ".js-row-status");
+
+                    if (!status) {
+                        return;
+                    }
+
+                    status.replaceChildren();
+                    status.classList.remove(
+                        "text-danger",
+                        "text-success");
+
+                    const createUrl = table.dataset.createUrl;
+
+                    if (!createUrl) {
+                        showRowMessage(
+                            status,
+                            "Не настроен адрес сохранения записи.",
+                            true);
+
+                        return;
+                    }
+
+                    if (!tokenInput?.value) {
+                        showRowMessage(
+                            status,
+                            "Не найден защитный токен. Обновите страницу.",
+                            true);
+
+                        return;
+                    }
+
+                    const fields = Array.from(
+                        row.querySelectorAll(
+                            "input[name], select[name]"));
+
+                    const formData = new FormData();
+
+                    for (const field of fields) {
+                        formData.append(field.name, field.value);
+                    }
+
+                    formData.append(
+                        "__RequestVerificationToken",
+                        tokenInput.value);
+
+                    button.disabled = true;
+                    button.textContent = "Сохранение…";
+
+                    row.setAttribute("aria-busy", "true");
+
+                    for (const field of fields) {
+                        field.disabled = true;
+                    }
+
+                    pendingRequests++;
+                    updateImportState();
+
+                    let saved = false;
+
+                    try {
+                        const response = await fetch(createUrl, {
+                            method: "POST",
+                            credentials: "same-origin",
+                            headers: {
+                                "Accept": "application/json"
+                            },
+                            body: formData
+                        });
+
+                        if (response.redirected ||
+                            response.status === 401 ||
+                            response.status === 403) {
+                            throw new Error(
+                                "Не удалось подтвердить доступ. " +
+                                "Проверьте вход в приложение и права " +
+                                "на добавление записей.");
+                        }
+
+                        const contentType =
+                            response.headers.get("content-type") ?? "";
+
+                        if (!contentType.includes("application/json")) {
+                            if (response.status === 400) {
+                                throw new Error(
+                                    "Запрос отклонён сервером. " +
+                                    "Возможно, защитный токен устарел. " +
+                                    "Обновите страницу и повторите проверку файла.");
+                            }
+
+                            throw new Error(
+                                "Сервер вернул неожиданный ответ " +
+                                `(HTTP ${response.status}). ` +
+                                "Проверьте наличие записи в справочнике " +
+                                "перед повторной попыткой.");
+                        }
+
+                        const result = await response.json();
+
+                        if (!response.ok || result?.success !== true) {
+                            const errors = getServerErrors(result);
+
+                            showRowErrors(
+                                status,
+                                errors.length > 0
+                                    ? errors
+                                    : [configuration.failureMessage]);
+
+                            return;
+                        }
+
+                        saved = true;
+                        row.dataset.saved = "true";
+
+                        row.classList.add("table-success");
+
+                        button.textContent = "Добавлено";
+                        button.classList.remove("btn-primary");
+                        button.classList.add("btn-success");
+
+                        showRowMessage(
+                            status,
+                            configuration.successMessage,
+                            false);
+
+                        updateProgress();
+                    }
+                    catch (error) {
+                        const message =
+                            error instanceof TypeError ||
+                                error instanceof SyntaxError
+                                ? "Не удалось получить корректный ответ сервера. " +
+                                "Запись могла сохраниться: проверьте " +
+                                "справочник перед повторной попыткой."
+                                : error instanceof Error
+                                    ? error.message
+                                    : "Не удалось выполнить запрос.";
+
+                        showRowMessage(status, message, true);
+                    }
+                    finally {
+                        row.removeAttribute("aria-busy");
+
+                        pendingRequests--;
+                        updateImportState();
+
+                        if (!saved) {
+                            button.disabled = false;
+                            button.textContent = "Добавить";
+
+                            for (const field of fields) {
+                                field.disabled = false;
+                            }
+                        }
+                    }
+                });
+            }
+        })();
+    </script>
 }
