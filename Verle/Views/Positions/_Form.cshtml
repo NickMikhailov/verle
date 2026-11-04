@@ -1,0 +1,66 @@
+﻿@model Verle.Models.PositionFormViewModel
+
+<div asp-validation-summary="ModelOnly"
+     class="text-danger mb-3"></div>
+
+<div class="mb-3">
+    <label asp-for="DepartmentId" class="form-label"></label>
+
+    <select asp-for="DepartmentId"
+            asp-items="Model.DepartmentOptions"
+            class="form-select"
+            id="position-department"
+            data-divisions-url="@Url.Action("GetDivisions", "Positions")">
+        <option value="">— Выберите блок —</option>
+    </select>
+
+    <span asp-validation-for="DepartmentId"
+          class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="DivisionId" class="form-label"></label>
+
+    <select asp-for="DivisionId"
+            asp-items="Model.DivisionOptions"
+            class="form-select"
+            id="position-division">
+        <option value="">— Выберите отдел —</option>
+    </select>
+
+    <span asp-validation-for="DivisionId"
+          class="text-danger"></span>
+
+    <div id="position-division-status"
+         class="form-text"
+         role="status"
+         aria-live="polite">
+        Сначала выберите блок, затем его отдел.
+    </div>
+
+    <button type="button"
+            id="position-divisions-retry"
+            class="btn btn-sm btn-outline-secondary mt-2"
+            hidden>
+        Повторить загрузку отделов
+    </button>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Name" class="form-label"></label>
+
+    <input asp-for="Name"
+           class="form-control"
+           maxlength="100"
+           placeholder="Введите название должности" />
+
+    <span asp-validation-for="Name"
+          class="text-danger"></span>
+</div>
+
+<noscript>
+    <div class="alert alert-warning">
+        Для выбора отделов при смене блока включите JavaScript
+        в браузере.
+    </div>
+</noscript>

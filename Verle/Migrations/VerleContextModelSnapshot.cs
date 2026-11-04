@@ -168,6 +168,160 @@ namespace Verle.Migrations
                     b.ToTable("counterpartGroupSalesChannel", (string)null);
                 });
 
+            modelBuilder.Entity("Verle.Models.Department", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Department", (string)null);
+                });
+
+            modelBuilder.Entity("Verle.Models.Division", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DepartmentId")
+                        .HasColumnType("integer")
+                        .HasColumnName("departmentId");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Division_DepartmentId_Name");
+
+                    b.ToTable("division", (string)null);
+                });
+
+            modelBuilder.Entity("Verle.Models.Employee", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("HireDate")
+                        .HasColumnType("date")
+                        .HasColumnName("hireDate");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Patronymic")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("patronymic");
+
+                    b.Property<int>("PositionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("positionId");
+
+                    b.Property<string>("Surname")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("surname");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PositionId");
+
+                    b.ToTable("employees", (string)null);
+                });
+
+            modelBuilder.Entity("Verle.Models.Fuso", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<double>("Capacity")
+                        .HasColumnType("double precision")
+                        .HasColumnName("capacity");
+
+                    b.Property<DateOnly>("CommissioningDate")
+                        .HasColumnType("date")
+                        .HasColumnName("commissioningDate");
+
+                    b.Property<string>("FusoNumber")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("fusoNumber");
+
+                    b.Property<int>("UnitId")
+                        .HasColumnType("integer")
+                        .HasColumnName("unit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UnitId");
+
+                    b.ToTable("FUSO", (string)null);
+                });
+
+            modelBuilder.Entity("Verle.Models.LegalEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("fullName");
+
+                    b.Property<string>("INN")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("INN");
+
+                    b.Property<string>("ShortName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("shortName");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("legalEntity", (string)null);
+                });
+
             modelBuilder.Entity("Verle.Models.Nomenclatura", b =>
                 {
                     b.Property<int>("Id")
@@ -284,6 +438,60 @@ namespace Verle.Migrations
                     b.HasIndex("SkuClassId");
 
                     b.ToTable("nomenclaturaSkuClass", (string)null);
+                });
+
+            modelBuilder.Entity("Verle.Models.OfficeLocation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("ShortName")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("shortName");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("officeLocation", (string)null);
+                });
+
+            modelBuilder.Entity("Verle.Models.Position", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DivisionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("divisionId");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DivisionId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Position_DivisionId_Name");
+
+                    b.ToTable("Position", (string)null);
                 });
 
             modelBuilder.Entity("Verle.Models.ProductType", b =>
@@ -412,6 +620,38 @@ namespace Verle.Migrations
                     b.ToTable("salesChannel", (string)null);
                 });
 
+            modelBuilder.Entity("Verle.Models.Shift", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("shifts", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "день"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "ночь"
+                        });
+                });
+
             modelBuilder.Entity("Verle.Models.SkuClass", b =>
                 {
                     b.Property<int>("Id")
@@ -430,6 +670,26 @@ namespace Verle.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("skuClass", (string)null);
+                });
+
+            modelBuilder.Entity("Verle.Models.Unit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("units", (string)null);
                 });
 
             modelBuilder.Entity("Verle.Models.BrandBrandGroupLink", b =>
@@ -487,6 +747,39 @@ namespace Verle.Migrations
                     b.Navigation("CounterpartGroup");
 
                     b.Navigation("SalesChannel");
+                });
+
+            modelBuilder.Entity("Verle.Models.Division", b =>
+                {
+                    b.HasOne("Verle.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Department");
+                });
+
+            modelBuilder.Entity("Verle.Models.Employee", b =>
+                {
+                    b.HasOne("Verle.Models.Position", "Position")
+                        .WithMany()
+                        .HasForeignKey("PositionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Position");
+                });
+
+            modelBuilder.Entity("Verle.Models.Fuso", b =>
+                {
+                    b.HasOne("Verle.Models.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Unit");
                 });
 
             modelBuilder.Entity("Verle.Models.NomenclaturaBrandLink", b =>
@@ -563,6 +856,17 @@ namespace Verle.Migrations
                     b.Navigation("Nomenclatura");
 
                     b.Navigation("SkuClass");
+                });
+
+            modelBuilder.Entity("Verle.Models.Position", b =>
+                {
+                    b.HasOne("Verle.Models.Division", "Division")
+                        .WithMany()
+                        .HasForeignKey("DivisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Division");
                 });
 
             modelBuilder.Entity("Verle.Models.Sale", b =>

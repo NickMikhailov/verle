@@ -1,0 +1,59 @@
+﻿@model Verle.Models.Employee
+
+@{
+    ViewData["Title"] = "Удаление сотрудника";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="row">
+    <div class="col-md-8 col-lg-6">
+        <div class="alert alert-warning">
+            Вы действительно хотите удалить сотрудника?
+        </div>
+
+        <dl class="row">
+            <dt class="col-sm-4">Фамилия</dt>
+            <dd class="col-sm-8">@Model.Surname</dd>
+
+            <dt class="col-sm-4">Имя</dt>
+            <dd class="col-sm-8">@Model.Name</dd>
+
+            <dt class="col-sm-4">Отчество</dt>
+            <dd class="col-sm-8">@(Model.Patronymic ?? "—")</dd>
+
+            <dt class="col-sm-4">Блок</dt>
+            <dd class="col-sm-8">
+                @Model.Position.Division.Department.Name
+            </dd>
+
+            <dt class="col-sm-4">Отдел</dt>
+            <dd class="col-sm-8">@Model.Position.Division.Name</dd>
+
+            <dt class="col-sm-4">Должность</dt>
+            <dd class="col-sm-8">@Model.Position.Name</dd>
+
+            <dt class="col-sm-4">Дата приёма</dt>
+            <dd class="col-sm-8">
+                @Model.HireDate.ToString("dd.MM.yyyy")
+            </dd>
+        </dl>
+
+        <form asp-action="Delete"
+              asp-route-id="@Model.Id"
+              method="post">
+
+            <div asp-validation-summary="ModelOnly"
+                 class="text-danger mb-3"></div>
+
+            <button type="submit" class="btn btn-danger">
+                Удалить
+            </button>
+
+            <a asp-action="Index"
+               class="btn btn-outline-secondary">
+                Отмена
+            </a>
+        </form>
+    </div>
+</div>

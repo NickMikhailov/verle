@@ -1,0 +1,131 @@
+﻿<script>
+    (() => {
+        "use strict";
+
+        const departmentSelect = document.getElementById(
+            "position-department");
+
+        const divisionSelect = document.getElementById(
+            "position-division");
+
+        const status = document.getElementById(
+            "position-division-status");
+
+        const retryButton = document.getElementById(
+            "position-divisions-retry");
+
+        if (!departmentSelect || !divisionSelect ||
+            !status || !retryButton) {
+            return;
+        }
+
+        let currentRequest = null;
+        let requestVersion = 0;
+
+        function resetDivisions(text) {
+            divisionSelect.replaceChildren(new Option(text, ""));
+            divisionSelect.disabled = true;
+        }
+
+        async function loadDivisions() {
+            const version = ++requestVersion;
+
+            currentRequest?.abort();
+            currentRequest = null;
+
+            retryButton.hidden = true;
+
+            const departmentId = departmentSelect.value;
+
+            if (!departmentId) {
+                resetDivisions("— Сначала выберите блок —");
+                status.textContent =
+                    "Сначала выберите блок, затем его отдел.";
+                return;
+            }
+
+            resetDivisions("Загрузка…");
+            status.textContent = "Загружаем отделы выбранного блока.";
+
+            const controller = new AbortController();
+            currentRequest = controller;
+
+            try {
+                const url = new URL(
+                    departmentSelect.dataset.divisionsUrl,
+                    window.location.href);
+
+                url.searchParams.set("departmentId", departmentId);
+
+                const response = await fetch(url, {
+                    credentials: "same-origin",
+                    headers: {
+                        "Accept": "application/json"
+                    },
+                    signal: controller.signal
+                });
+
+                if (!response.ok || response.redirected) {
+                    throw new Error("Не удалось загрузить отделы.");
+                }
+
+                const divisions = await response.json();
+
+                if (!Array.isArray(divisions)) {
+                    throw new Error("Некорректный ответ сервера.");
+                }
+
+                if (version !== requestVersion) {
+                    return;
+                }
+
+                resetDivisions("— Выберите отдел —");
+
+                for (const division of divisions) {
+                    divisionSelect.add(
+                        new Option(division.name, division.id));
+                }
+
+                divisionSelect.disabled = divisions.length === 0;
+
+                status.textContent = divisions.length > 0
+                    ? "Доступны только отделы выбранного блока."
+                    : "В этом блоке пока нет отделов. " +
+                    "Сначала создайте отдел в разделе «Персонал → Отделы».";
+            }
+            catch (error) {
+                if (error.name === "AbortError" ||
+                    version !== requestVersion) {
+                    return;
+                }
+
+                resetDivisions("— Отделы не загружены —");
+
+                status.textContent =
+                    "Не удалось загрузить отделы. Проверьте соединение " +
+                    "и доступ к приложению, затем повторите загрузку.";
+
+                retryButton.hidden = false;
+            }
+            finally {
+                if (version === requestVersion) {
+                    currentRequest = null;
+                }
+            }
+        }
+
+        departmentSelect.addEventListener("change", loadDivisions);
+        retryButton.addEventListener("click", loadDivisions);
+
+        // При редактировании сохраняем отдел, который уже выбран
+        // и загружен сервером. Повторный запрос здесь не нужен.
+        if (!departmentSelect.value) {
+            resetDivisions("— Сначала выберите блок —");
+        }
+        else if (divisionSelect.options.length <= 1) {
+            resetDivisions("— Нет доступных отделов —");
+            status.textContent =
+                "В выбранном блоке пока нет доступных отделов.";
+        }
+    })();
+</script>

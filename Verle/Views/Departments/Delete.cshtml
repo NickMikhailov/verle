@@ -1,0 +1,44 @@
+﻿@model Verle.Models.Department
+
+@{
+    ViewData["Title"] = "Удаление блока";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="row">
+    <div class="col-md-8 col-lg-6">
+        <div class="alert alert-warning">
+            Вы действительно хотите удалить этот блок?
+        </div>
+
+        <dl class="row">
+            <dt class="col-sm-4">ID</dt>
+            <dd class="col-sm-8">@Model.Id</dd>
+
+            <dt class="col-sm-4">Название блока</dt>
+            <dd class="col-sm-8">@Model.Name</dd>
+        </dl>
+
+        <form asp-action="Delete"
+              asp-route-id="@Model.Id"
+              method="post">
+
+            <input type="hidden" asp-for="Id" />
+
+            <div asp-validation-summary="ModelOnly"
+                 class="text-danger mb-3"></div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-danger">
+                    Удалить
+                </button>
+
+                <a asp-action="Index"
+                   class="btn btn-outline-secondary">
+                    Отмена
+                </a>
+            </div>
+        </form>
+    </div>
+</div>

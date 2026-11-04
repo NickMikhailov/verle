@@ -44,8 +44,23 @@ namespace Verle.Data
             Set<CounterpartGroupSalesChannelLink>();
         public DbSet<Sale> Sales =>
             Set<Sale>();
-        
-        
+        public DbSet<Unit> Units =>
+            Set<Unit>();
+        public DbSet<Fuso> Fusos =>
+            Set<Fuso>();
+        public DbSet<Shift> Shifts => 
+            Set<Shift>();
+        public DbSet<LegalEntity> LegalEntities =>
+            Set<LegalEntity>();
+        public DbSet<OfficeLocation> OfficeLocations =>
+            Set<OfficeLocation>();
+        public DbSet<Department> Departments =>
+            Set<Department>();
+        public DbSet<Division> Divisions =>
+            Set<Division>();
+        public DbSet<Position> Positions => 
+            Set<Position>();
+        public DbSet<Employee> Employees => Set<Employee>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -287,6 +302,242 @@ namespace Verle.Data
                     .HasDatabaseName(
                         "UX_sales_counterpartId1C_document_nomenclaturaId1C");
             });
+            modelBuilder.Entity<Unit>(entity =>
+            {
+                entity.ToTable("units");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.Name)
+                    .HasColumnName("name")
+                    .HasMaxLength(100)
+                    .IsRequired();
+            });
+            modelBuilder.Entity<Fuso>(entity =>
+            {
+                entity.ToTable("FUSO");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.FusoNumber)
+                    .HasColumnName("fusoNumber")
+                    .IsRequired();
+
+                entity.Property(x => x.CommissioningDate)
+                    .HasColumnName("commissioningDate")
+                    .HasColumnType("date")
+                    .IsRequired();
+
+                entity.Property(x => x.Capacity)
+                    .HasColumnName("capacity")
+                    .HasColumnType("double precision")
+                    .IsRequired();
+
+                entity.Property(x => x.UnitId)
+                    .HasColumnName("unit")
+                    .IsRequired();
+
+                entity.HasOne(x => x.Unit)
+                    .WithMany()
+                    .HasForeignKey(x => x.UnitId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<Shift>(entity =>
+            {
+                entity.ToTable("shifts");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.Name)
+                    .HasColumnName("name")
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.HasData(
+                    new Shift
+                    {
+                        Id = 1,
+                        Name = "день"
+                    },
+                    new Shift
+                    {
+                        Id = 2,
+                        Name = "ночь"
+                    }
+                );
+            });
+            modelBuilder.Entity<LegalEntity>(entity =>
+            {
+                entity.ToTable("legalEntity");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.FullName)
+                    .HasColumnName("fullName")
+                    .HasMaxLength(300)
+                    .IsRequired();
+
+                entity.Property(x => x.ShortName)
+                    .HasColumnName("shortName")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.INN)
+                    .HasColumnName("INN")
+                    .HasMaxLength(10)
+                    .IsRequired();
+            });
+            modelBuilder.Entity<OfficeLocation>(entity =>
+            {
+                entity.ToTable("officeLocation");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.Name)
+                    .HasColumnName("name")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.ShortName)
+                    .HasColumnName("shortName")
+                    .HasMaxLength(20)
+                    .IsRequired();
+            });
+            modelBuilder.Entity<Department>(entity =>
+            {
+                entity.ToTable("Department");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.Name)
+                    .HasColumnName("name")
+                    .HasMaxLength(100)
+                    .IsRequired();
+            });
+            modelBuilder.Entity<Division>(entity =>
+            {
+                entity.ToTable("division");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.Name)
+                    .HasColumnName("name")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.DepartmentId)
+                    .HasColumnName("departmentId")
+                    .IsRequired();
+
+                entity.HasOne(x => x.Department)
+                    .WithMany()
+                    .HasForeignKey(x => x.DepartmentId)
+                    .IsRequired()
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => new { x.DepartmentId, x.Name })
+                    .IsUnique()
+                    .HasDatabaseName("UX_Division_DepartmentId_Name");
+            });
+            modelBuilder.Entity<Position>(entity =>
+            {
+                entity.ToTable("Position");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.Name)
+                    .HasColumnName("name")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.DivisionId)
+                    .HasColumnName("divisionId")
+                    .IsRequired();
+
+                entity.HasOne(x => x.Division)
+                    .WithMany()
+                    .HasForeignKey(x => x.DivisionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => new { x.DivisionId, x.Name })
+                    .IsUnique()
+                    .HasDatabaseName("UX_Position_DivisionId_Name");
+            });
+            modelBuilder.Entity<Employee>(entity =>
+            {
+                entity.ToTable("employees");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.Surname)
+                    .HasColumnName("surname")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.Name)
+                    .HasColumnName("name")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.Patronymic)
+                    .HasColumnName("patronymic")
+                    .HasMaxLength(100)
+                    .IsRequired(false);
+
+                entity.Property(x => x.HireDate)
+                    .HasColumnName("hireDate")
+                    .HasColumnType("date")
+                    .IsRequired();
+
+                entity.Property(x => x.PositionId)
+                    .HasColumnName("positionId")
+                    .IsRequired();
+
+                entity.HasOne(x => x.Position)
+                    .WithMany()
+                    .HasForeignKey(x => x.PositionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+
+
+
             // Основной класс номенклатуры.
             modelBuilder.Entity<NomenclaturaClassLink>(entity =>
             {

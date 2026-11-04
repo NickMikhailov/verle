@@ -1,0 +1,66 @@
+﻿@model Verle.Models.Division
+
+@{
+    ViewData["Title"] = "Добавление отдела";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="row">
+    <div class="col-md-6 col-lg-5">
+        <form asp-action="Create" method="post">
+            <div asp-validation-summary="ModelOnly"
+                 class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="Name" class="form-label">
+                    Название отдела
+                </label>
+
+                <input asp-for="Name"
+                       class="form-control"
+                       maxlength="100"
+                       placeholder="Введите название отдела" />
+
+                <span asp-validation-for="Name"
+                      class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="DepartmentId" class="form-label">
+                    Блок
+                </label>
+
+                <select asp-for="DepartmentId"
+                        asp-items="ViewBag.Departments"
+                        class="form-select">
+                    <option value="">— Выберите блок —</option>
+                </select>
+
+                <span asp-validation-for="DepartmentId"
+                      class="text-danger"></span>
+
+                <div class="form-text">
+                    Отдел должен входить в один блок.
+                    Если нужного блока нет, сначала добавьте его
+                    в разделе «Персонал → Блоки».
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    Создать
+                </button>
+
+                <a asp-action="Index"
+                   class="btn btn-outline-secondary">
+                    Отмена
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,152 @@
+﻿<script>
+    (() => {
+        const department = document.getElementById("DepartmentId");
+        const division = document.getElementById("DivisionId");
+        const position = document.getElementById("PositionId");
+        const message =
+            document.getElementById("employeeSelectionMessage");
+
+        if (!department || !division || !position || !message) {
+            return;
+        }
+
+        const divisionsUrl = '@Url.Action("GetDivisions", "Employees")';
+        const positionsUrl = '@Url.Action("GetPositions", "Employees")';
+
+        let divisionRequest = 0;
+        let positionRequest = 0;
+
+        function resetSelect(select, placeholder) {
+            select.replaceChildren(new Option(placeholder, ""));
+            select.disabled = true;
+        }
+
+        function fillSelect(select, placeholder, items) {
+            resetSelect(select, placeholder);
+
+            for (const item of items) {
+                select.add(new Option(item.name, item.id));
+            }
+
+            select.disabled = items.length === 0;
+        }
+
+        function showMessage(text, isError = false) {
+            message.textContent = text;
+            message.classList.toggle("text-danger", isError);
+            message.classList.toggle("text-muted", !isError);
+        }
+
+        async function getItems(url, parameters) {
+            const query = new URLSearchParams(parameters);
+
+            const response = await fetch(`${url}?${query}`, {
+                headers: {
+                    "Accept": "application/json"
+                },
+                credentials: "same-origin"
+            });
+
+            if (!response.ok) {
+                throw new Error("Ошибка загрузки списка.");
+            }
+
+            const items = await response.json();
+
+            if (!Array.isArray(items)) {
+                throw new Error("Некорректный ответ сервера.");
+            }
+
+            return items;
+        }
+
+        department.addEventListener("change", async () => {
+            const currentRequest = ++divisionRequest;
+
+            // Ответ на старый запрос должностей также больше не нужен.
+            ++positionRequest;
+
+            resetSelect(division, "— Выберите отдел —");
+            resetSelect(position, "— Выберите должность —");
+
+            showMessage("");
+
+            if (!department.value) {
+                return;
+            }
+
+            showMessage("Загрузка отделов…");
+
+            try {
+                const items = await getItems(divisionsUrl, {
+                    departmentId: department.value
+                });
+
+                if (currentRequest !== divisionRequest) {
+                    return;
+                }
+
+                fillSelect(division, "— Выберите отдел —", items);
+
+                showMessage(
+                    items.length === 0
+                        ? "В выбранном блоке пока нет отделов."
+                        : ""
+                );
+            } catch (error) {
+                if (currentRequest !== divisionRequest) {
+                    return;
+                }
+
+                showMessage(
+                    "Не удалось загрузить отделы. " +
+                    "Повторно выберите блок или обновите страницу.",
+                    true
+                );
+            }
+        });
+
+        division.addEventListener("change", async () => {
+            const currentRequest = ++positionRequest;
+
+            resetSelect(position, "— Выберите должность —");
+
+            showMessage("");
+
+            if (!department.value || !division.value) {
+                return;
+            }
+
+            showMessage("Загрузка должностей…");
+
+            try {
+                const items = await getItems(positionsUrl, {
+                    departmentId: department.value,
+                    divisionId: division.value
+                });
+
+                if (currentRequest !== positionRequest) {
+                    return;
+                }
+
+                fillSelect(position, "— Выберите должность —", items);
+
+                showMessage(
+                    items.length === 0
+                        ? "В выбранном отделе пока нет должностей."
+                        : ""
+                );
+            } catch (error) {
+                if (currentRequest !== positionRequest) {
+                    return;
+                }
+
+                showMessage(
+                    "Не удалось загрузить должности. " +
+                    "Повторно выберите отдел или обновите страницу.",
+                    true
+                );
+            }
+        });
+    })();
+</script>

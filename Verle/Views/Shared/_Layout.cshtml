@@ -177,6 +177,55 @@
                                 </li>
                             </ul>
                         </li>
+                        <!-- Меню персонала -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-dark"
+                               href="#"
+                               id="personnelDropdown"
+                               role="button"
+                               data-bs-toggle="dropdown"
+                               aria-expanded="false">
+                                Персонал
+                            </a>
+
+                            <ul class="dropdown-menu"
+                                aria-labelledby="personnelDropdown">
+
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-area=""
+                                       asp-controller="Departments"
+                                       asp-action="Index">
+                                        Блоки
+                                    </a>
+                                </li>
+
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-area=""
+                                       asp-controller="Divisions"
+                                       asp-action="Index">
+                                        Отделы
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-area=""
+                                       asp-controller="Positions"
+                                       asp-action="Index">
+                                        Должности
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-area=""
+                                       asp-controller="Employees"
+                                       asp-action="Index">
+                                        Сотрудники
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
                     </ul>
                 </div>
             </div>
