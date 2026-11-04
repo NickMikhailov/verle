@@ -1,0 +1,21 @@
+﻿@model Verle.ViewModels.DripSemiproductOrderFormViewModel
+
+@{
+    ViewData["Title"] = "Создание заказа ПФ Дрипы";
+}
+
+<h1>Создание заказа ПФ Дрипы</h1>
+
+<form asp-action="Create" method="post">
+    <partial name="_Form" model="Model" />
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+            Создать
+        </button>
+
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            Отмена
+        </a>
+    </div>
+</form>

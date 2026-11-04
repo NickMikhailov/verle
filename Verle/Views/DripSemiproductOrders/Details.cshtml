@@ -1,0 +1,21 @@
+﻿@model Verle.Models.DripSemiproductOrder
+
+@{
+    ViewData["Title"] = "Просмотр заказа ПФ Дрипы";
+}
+
+<h1>Заказ ПФ Дрипы</h1>
+
+<partial name="_OrderDetails" model="Model" />
+
+<div class="d-flex gap-2">
+    <a asp-action="Edit"
+       asp-route-id="@Model.Id"
+       class="btn btn-primary">
+        Изменить
+    </a>
+
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        К списку
+    </a>
+</div>

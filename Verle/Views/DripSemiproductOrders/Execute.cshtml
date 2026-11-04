@@ -1,0 +1,94 @@
+﻿@model Verle.ViewModels.DripSemiproductOrderExecutionViewModel
+
+@{
+    ViewData["Title"] = "Выполнение заказа";
+}
+
+<h1>Выполнение заказа</h1>
+
+<div class="card mb-4">
+    <div class="card-header">
+        Данные заказа
+    </div>
+
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-4">ID заказа в 1С</dt>
+            <dd class="col-sm-8">@Model.Id1C</dd>
+
+            <dt class="col-sm-4">Дата заказа</dt>
+            <dd class="col-sm-8">
+                @Model.OrderDate.ToString("dd.MM.yyyy")
+            </dd>
+
+            <dt class="col-sm-4">Код номенклатуры в 1С</dt>
+            <dd class="col-sm-8">@Model.NomenclaturaId1C</dd>
+
+            <dt class="col-sm-4">Номенклатура</dt>
+            <dd class="col-sm-8">@Model.NomenclaturaName</dd>
+
+            <dt class="col-sm-4">Смена</dt>
+            <dd class="col-sm-8">@Model.ShiftName</dd>
+
+            <dt class="col-sm-4">Машина FUSO</dt>
+            <dd class="col-sm-8">@Model.FusoNumber</dd>
+
+            <dt class="col-sm-4">План</dt>
+            <dd class="col-sm-8">
+                @Model.Plan.ToString("0.###")
+            </dd>
+
+            <dt class="col-sm-4">Комментарий к заказу</dt>
+            <dd class="col-sm-8">
+                <div style="white-space: pre-wrap;">@(Model.OrderComment ?? "—")</div>
+            </dd>
+        </dl>
+    </div>
+</div>
+
+<form asp-action="Execute"
+      asp-route-id="@Model.Id"
+      method="post">
+
+    <input asp-for="Id" type="hidden" />
+
+    <div asp-validation-summary="ModelOnly"
+         class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="Actual" class="form-label"></label>
+
+        <input asp-for="Actual"
+               class="form-control"
+               type="number"
+               min="0"
+               step="0.001"
+               required />
+
+        <span asp-validation-for="Actual"
+              class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Comment" class="form-label"></label>
+
+        <textarea asp-for="Comment"
+                  class="form-control"
+                  rows="4"></textarea>
+
+        <span asp-validation-for="Comment"
+              class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+        Сохранить факт
+    </button>
+
+    <a asp-action="Index" class="btn btn-secondary">
+        Вернуться к списку
+    </a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

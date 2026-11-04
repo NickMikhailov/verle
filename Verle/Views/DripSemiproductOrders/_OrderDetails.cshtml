@@ -1,0 +1,32 @@
+﻿@model Verle.Models.DripSemiproductOrder
+
+<dl class="row">
+    <dt class="col-sm-3">ID</dt>
+    <dd class="col-sm-9">@Model.Id</dd>
+
+    <dt class="col-sm-3">ID заказа в 1С</dt>
+    <dd class="col-sm-9">@Model.Id1C</dd>
+
+    <dt class="col-sm-3">Дата заказа</dt>
+    <dd class="col-sm-9">
+        @Model.OrderDate.ToString("dd.MM.yyyy")
+    </dd>
+
+    <dt class="col-sm-3">Код номенклатуры в 1С</dt>
+    <dd class="col-sm-9">@Model.Nomenclatura.Id1C</dd>
+
+    <dt class="col-sm-3">Номенклатура</dt>
+    <dd class="col-sm-9">@Model.Nomenclatura.Name</dd>
+
+    <dt class="col-sm-3">Смена</dt>
+    <dd class="col-sm-9">@Model.Shift.Name</dd>
+
+    <dt class="col-sm-3">Машина FUSO</dt>
+    <dd class="col-sm-9">@Model.Fuso.FusoNumber</dd>
+
+    <dt class="col-sm-3">План</dt>
+    <dd class="col-sm-9">@Model.Plan.ToString("N3")</dd>
+
+    <dt class="col-sm-3">Комментарий</dt>
+    <dd class="col-sm-9" style="white-space: pre-wrap;">@(Model.Comment ?? "—")</dd>
+</dl>
