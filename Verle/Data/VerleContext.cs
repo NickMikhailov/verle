@@ -61,6 +61,10 @@ namespace Verle.Data
         public DbSet<Position> Positions => 
             Set<Position>();
         public DbSet<Employee> Employees => Set<Employee>();
+        public DbSet<DripSemiproductOrder> DripSemiproductOrders =>
+            Set<DripSemiproductOrder>();
+        public DbSet<DripSemiproductOrderExecution> DripSemiproductOrderExecutions =>
+            Set<DripSemiproductOrderExecution>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -534,8 +538,94 @@ namespace Verle.Data
                     .HasForeignKey(x => x.PositionId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+            // Заказы на производство полуфабрикатов дрип-пакетов.
+            modelBuilder.Entity<DripSemiproductOrder>(entity =>
+            {
+                entity.ToTable("DripSemiproductOrders");
 
+                entity.HasKey(x => x.Id);
 
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.Id1C)
+                    .HasColumnName("id1C")
+                    .HasColumnType("text")
+                    .IsRequired();
+
+                entity.HasIndex(x => x.Id1C)
+                    .IsUnique()
+                    .HasDatabaseName("UX_DripSemiproductOrders_id1C");
+
+                entity.Property(x => x.OrderDate)
+                    .HasColumnName("orderDate")
+                    .HasColumnType("date")
+                    .IsRequired();
+
+                entity.Property(x => x.NomenclaturaId)
+                    .HasColumnName("nomenclaturaId")
+                    .IsRequired();
+
+                entity.Property(x => x.ShiftId)
+                    .HasColumnName("shift")
+                    .HasDefaultValue(1)
+                    .IsRequired();
+
+                entity.Property(x => x.FusoId)
+                    .HasColumnName("fusoId")
+                    .IsRequired();
+
+                entity.Property(x => x.Comment)
+                    .HasColumnName("comment")
+                    .HasColumnType("text")
+                    .IsRequired(false);
+
+                entity.Property(x => x.Plan)
+                    .HasColumnName("plan")
+                    .HasPrecision(18, 3)
+                    .IsRequired();
+
+                entity.HasOne(x => x.Nomenclatura)
+                    .WithMany()
+                    .HasForeignKey(x => x.NomenclaturaId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.Shift)
+                    .WithMany()
+                    .HasForeignKey(x => x.ShiftId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.Fuso)
+                    .WithMany()
+                    .HasForeignKey(x => x.FusoId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<DripSemiproductOrderExecution>(entity =>
+            {
+                entity.ToTable("DripSemiproductOrderExecutions");
+
+                entity.HasKey(x => x.OrderId);
+
+                entity.Property(x => x.OrderId)
+                    .HasColumnName("orderId")
+                    .ValueGeneratedNever();
+
+                entity.Property(x => x.Actual)
+                    .HasColumnName("actual")
+                    .HasPrecision(18, 3)
+                    .IsRequired();
+
+                entity.Property(x => x.Comment)
+                    .HasColumnName("comment")
+                    .HasColumnType("text")
+                    .IsRequired(false);
+
+                entity.HasOne(x => x.Order)
+                    .WithOne(x => x.Execution)
+                    .HasForeignKey<DripSemiproductOrderExecution>(x => x.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
 
             // Основной класс номенклатуры.

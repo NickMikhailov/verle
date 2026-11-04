@@ -1,0 +1,31 @@
+﻿@model Verle.Models.DripSemiproductOrder
+
+@{
+    ViewData["Title"] = "Удаление заказа ПФ Дрипы";
+}
+
+<h1>Удаление заказа ПФ Дрипы</h1>
+
+<div class="alert alert-warning">
+    Вы действительно хотите удалить этот заказ?
+</div>
+
+<div asp-validation-summary="All"
+     class="text-danger mb-3"></div>
+
+<partial name="_OrderDetails" model="Model" />
+
+<form asp-action="Delete"
+      asp-route-id="@Model.Id"
+      method="post">
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-danger">
+            Удалить
+        </button>
+
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            Отмена
+        </a>
+    </div>
+</form>

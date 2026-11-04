@@ -216,6 +216,82 @@ namespace Verle.Migrations
                     b.ToTable("division", (string)null);
                 });
 
+            modelBuilder.Entity("Verle.Models.DripSemiproductOrder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("text")
+                        .HasColumnName("comment");
+
+                    b.Property<int>("FusoId")
+                        .HasColumnType("integer")
+                        .HasColumnName("fusoId");
+
+                    b.Property<string>("Id1C")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("id1C");
+
+                    b.Property<int>("NomenclaturaId")
+                        .HasColumnType("integer")
+                        .HasColumnName("nomenclaturaId");
+
+                    b.Property<DateOnly>("OrderDate")
+                        .HasColumnType("date")
+                        .HasColumnName("orderDate");
+
+                    b.Property<decimal>("Plan")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)")
+                        .HasColumnName("plan");
+
+                    b.Property<int>("ShiftId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("shift");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FusoId");
+
+                    b.HasIndex("Id1C")
+                        .IsUnique()
+                        .HasDatabaseName("UX_DripSemiproductOrders_id1C");
+
+                    b.HasIndex("NomenclaturaId");
+
+                    b.HasIndex("ShiftId");
+
+                    b.ToTable("DripSemiproductOrders", (string)null);
+                });
+
+            modelBuilder.Entity("Verle.Models.DripSemiproductOrderExecution", b =>
+                {
+                    b.Property<int>("OrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("orderId");
+
+                    b.Property<decimal>("Actual")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)")
+                        .HasColumnName("actual");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("text")
+                        .HasColumnName("comment");
+
+                    b.HasKey("OrderId");
+
+                    b.ToTable("DripSemiproductOrderExecutions", (string)null);
+                });
+
             modelBuilder.Entity("Verle.Models.Employee", b =>
                 {
                     b.Property<int>("Id")
@@ -760,6 +836,44 @@ namespace Verle.Migrations
                     b.Navigation("Department");
                 });
 
+            modelBuilder.Entity("Verle.Models.DripSemiproductOrder", b =>
+                {
+                    b.HasOne("Verle.Models.Fuso", "Fuso")
+                        .WithMany()
+                        .HasForeignKey("FusoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Verle.Models.Nomenclatura", "Nomenclatura")
+                        .WithMany()
+                        .HasForeignKey("NomenclaturaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Verle.Models.Shift", "Shift")
+                        .WithMany()
+                        .HasForeignKey("ShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Fuso");
+
+                    b.Navigation("Nomenclatura");
+
+                    b.Navigation("Shift");
+                });
+
+            modelBuilder.Entity("Verle.Models.DripSemiproductOrderExecution", b =>
+                {
+                    b.HasOne("Verle.Models.DripSemiproductOrder", "Order")
+                        .WithOne("Execution")
+                        .HasForeignKey("Verle.Models.DripSemiproductOrderExecution", "OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("Verle.Models.Employee", b =>
                 {
                     b.HasOne("Verle.Models.Position", "Position")
@@ -910,6 +1024,11 @@ namespace Verle.Migrations
                     b.Navigation("CounterpartLinks");
 
                     b.Navigation("SalesChannelLink");
+                });
+
+            modelBuilder.Entity("Verle.Models.DripSemiproductOrder", b =>
+                {
+                    b.Navigation("Execution");
                 });
 
             modelBuilder.Entity("Verle.Models.Nomenclatura", b =>

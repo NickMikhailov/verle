@@ -1,0 +1,300 @@
+﻿@model Verle.ViewModels.DripSemiproductOrderFormViewModel
+
+<div asp-validation-summary="ModelOnly"
+     class="text-danger mb-3"></div>
+
+<input type="hidden" asp-for="Id" />
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label asp-for="Id1C" class="form-label"></label>
+        <input asp-for="Id1C" class="form-control" />
+        <span asp-validation-for="Id1C"
+              class="text-danger"></span>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <label asp-for="OrderDate" class="form-label"></label>
+        <input asp-for="OrderDate"
+               type="date"
+               asp-format="{0:yyyy-MM-dd}"
+               class="form-control" />
+        <span asp-validation-for="OrderDate"
+              class="text-danger"></span>
+    </div>
+</div>
+
+<div class="mb-3">
+    <label for="NomenclaturaSearch" class="form-label">
+        Поиск номенклатуры
+    </label>
+
+    <div class="input-group">
+        <input id="NomenclaturaSearch"
+               type="search"
+               class="form-control"
+               placeholder="Введите часть кода 1С или названия"
+               autocomplete="off"
+               aria-describedby="NomenclaturaSearchStatus" />
+
+        <button id="ClearNomenclaturaSearch"
+                type="button"
+                class="btn btn-outline-secondary">
+            Сбросить поиск
+        </button>
+    </div>
+
+    <div id="NomenclaturaSearchStatus"
+         class="form-text"
+         role="status"
+         aria-live="polite">
+    </div>
+</div>
+
+<div class="mb-3">
+    <label asp-for="NomenclaturaId" class="form-label"></label>
+
+    <select asp-for="NomenclaturaId"
+            asp-items="ViewBag.Nomenclaturas"
+            class="form-select">
+        <option value="">— Выберите номенклатуру —</option>
+    </select>
+
+    <span asp-validation-for="NomenclaturaId"
+          class="text-danger"></span>
+
+    <div class="form-text">
+        Доступны только номенклатуры с классом SKU «Полуфабрикат».
+        Можно выбрать из полного списка или предварительно найти
+        по коду 1С либо названию.
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <label for="NomenclaturaCode" class="form-label">
+            Код номенклатуры в 1С
+        </label>
+
+        <input id="NomenclaturaCode"
+               type="text"
+               class="form-control"
+               readonly />
+    </div>
+
+    <div class="col-md-8 mb-3">
+        <label for="NomenclaturaName" class="form-label">
+            Наименование номенклатуры
+        </label>
+
+        <input id="NomenclaturaName"
+               type="text"
+               class="form-control"
+               readonly />
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <label for="NomenclaturaCode" class="form-label">
+            Код номенклатуры в 1С
+        </label>
+        <input id="NomenclaturaCode"
+               type="text"
+               class="form-control"
+               readonly />
+    </div>
+
+    <div class="col-md-8 mb-3">
+        <label for="NomenclaturaName" class="form-label">
+            Наименование номенклатуры
+        </label>
+        <input id="NomenclaturaName"
+               type="text"
+               class="form-control"
+               readonly />
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <label asp-for="ShiftId" class="form-label"></label>
+        <select asp-for="ShiftId"
+                asp-items="ViewBag.Shifts"
+                class="form-select">
+            <option value="">— Выберите смену —</option>
+        </select>
+        <span asp-validation-for="ShiftId"
+              class="text-danger"></span>
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <label asp-for="FusoId" class="form-label"></label>
+        <select asp-for="FusoId"
+                asp-items="ViewBag.Fusos"
+                class="form-select">
+            <option value="">— Выберите машину —</option>
+        </select>
+        <span asp-validation-for="FusoId"
+              class="text-danger"></span>
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <label asp-for="Plan" class="form-label"></label>
+        <input asp-for="Plan"
+               type="text"
+               inputmode="decimal"
+               class="form-control" />
+        <span asp-validation-for="Plan"
+              class="text-danger"></span>
+        <div class="form-text">
+            До трёх знаков после запятой.
+        </div>
+    </div>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Comment" class="form-label"></label>
+    <textarea asp-for="Comment"
+              rows="3"
+              class="form-control"></textarea>
+    <span asp-validation-for="Comment"
+          class="text-danger"></span>
+</div>
+
+<script>
+    (() => {
+        const nomenclaturas = @Html.Raw(
+            System.Text.Json.JsonSerializer.Serialize(
+            ViewData["NomenclaturaInfo"]));
+
+        const select = document.getElementById("NomenclaturaId");
+        const search = document.getElementById("NomenclaturaSearch");
+        const clearButton = document.getElementById(
+            "ClearNomenclaturaSearch");
+
+        const status = document.getElementById(
+            "NomenclaturaSearchStatus");
+
+        const code = document.getElementById("NomenclaturaCode");
+        const name = document.getElementById("NomenclaturaName");
+
+        if (!select || !search || !clearButton ||
+            !status || !code || !name) {
+            return;
+        }
+
+        function normalize(value) {
+            return String(value ?? "").toLocaleLowerCase("ru-RU");
+        }
+
+        const items = (nomenclaturas ?? []).map(item => ({
+            value: String(item.id),
+            id1C: String(item.id1C ?? ""),
+            name: String(item.name ?? ""),
+            searchCode: normalize(item.id1C),
+            searchName: normalize(item.name)
+        }));
+
+        const itemsById = new Map(
+            items.map(item => [item.value, item])
+        );
+
+        function createOption(item) {
+            return new Option(
+                `${item.id1C} — ${item.name}`,
+                item.value
+            );
+        }
+
+        function updateNomenclatura() {
+            const selected = itemsById.get(select.value);
+
+            code.value = selected?.id1C ?? "";
+            name.value = selected?.name ?? "";
+        }
+
+        function filterNomenclaturas() {
+            const query = normalize(search.value.trim());
+
+            // Поиск сам по себе не меняет выбранную
+            // номенклатуру в заказе.
+            const selectedValue = select.value;
+            const selectedItem = itemsById.get(selectedValue);
+
+            const matches = items.filter(item =>
+                !query ||
+                item.searchCode.includes(query) ||
+                item.searchName.includes(query)
+            );
+
+            const selectedIsOutsideResults =
+                selectedItem !== undefined &&
+                !matches.some(item => item.value === selectedValue);
+
+            const fragment = document.createDocumentFragment();
+
+            fragment.appendChild(
+                new Option("— Выберите номенклатуру —", "")
+            );
+
+            // Сохраняем текущий выбор, даже если он
+            // не соответствует введённому поисковому запросу.
+            if (selectedIsOutsideResults) {
+                const group = document.createElement("optgroup");
+
+                group.label =
+                    "Текущий выбор — вне результатов поиска";
+
+                group.appendChild(createOption(selectedItem));
+                fragment.appendChild(group);
+            }
+
+            for (const item of matches) {
+                fragment.appendChild(createOption(item));
+            }
+
+            select.replaceChildren(fragment);
+
+            // Первое совпадение автоматически не выбирается.
+            select.value = selectedItem ? selectedValue : "";
+
+            if (items.length === 0) {
+                status.textContent =
+                    "Нет номенклатур с классом SKU «Полуфабрикат».";
+            }
+            else if (!query) {
+                status.textContent =
+                    `Доступно номенклатур: ${items.length}.`;
+            }
+            else {
+                status.textContent =
+                    `Найдено: ${matches.length} из ${items.length}.`;
+
+                if (selectedIsOutsideResults) {
+                    status.textContent +=
+                        " Текущий выбор сохранён отдельно.";
+                }
+
+                if (matches.length === 0) {
+                    status.textContent +=
+                        " Измените запрос или сбросьте поиск.";
+                }
+            }
+
+            updateNomenclatura();
+        }
+
+        search.addEventListener("input", filterNomenclaturas);
+
+        clearButton.addEventListener("click", () => {
+            search.value = "";
+            filterNomenclaturas();
+            search.focus();
+        });
+
+        select.addEventListener("change", filterNomenclaturas);
+
+        filterNomenclaturas();
+    })();
+</script>
