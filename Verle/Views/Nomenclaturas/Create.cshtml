@@ -13,7 +13,8 @@
         <form asp-controller="Nomenclaturas"
               asp-action="Create"
               asp-antiforgery="true"
-              method="post">
+              method="post"
+              data-nomenclatura-classifications>
 
             @* Общие ошибки формы и сохранения.
             Ошибки отдельных полей выводятся рядом с ними. *@
@@ -196,4 +197,7 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+
+    <script src="~/js/nomenclatura-classifications.js"
+            asp-append-version="true"></script>
 }

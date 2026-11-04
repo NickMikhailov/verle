@@ -14,7 +14,8 @@
               asp-action="Edit"
               asp-route-id="@Model.Id"
               asp-antiforgery="true"
-              method="post">
+              method="post"
+              data-nomenclatura-classifications>
 
             @* Общие ошибки формы и сохранения.
             Ошибки отдельных полей выводятся рядом с ними. *@
@@ -48,7 +49,7 @@
                        aria-describedby="id1c-help" />
 
                 <div id="id1c-help" class="form-text">
-                    Необязательный идентификатор номенклатуры из 1С.
+                    Обязательный уникальный идентификатор номенклатуры из 1С.
                 </div>
 
                 <span asp-validation-for="Id1C"
@@ -60,11 +61,17 @@
             <h2 class="h5 mb-3">Классификация</h2>
 
             <p class="text-muted">
-                Все классификации необязательны.
-                Чтобы снять ранее назначенную классификацию,
-                выберите пустой вариант в соответствующем списке
-                и сохраните изменения.
+                Сначала выберите класс номенклатуры.
+                Для товара доступен выбор класса SKU.
+                Для готовой продукции дополнительно доступны тип продукта и бренд.
+                Классификации можно оставить незаполненными.
             </p>
+
+            <div class="alert alert-warning">
+                При изменении класса номенклатуры или класса SKU
+                неприменимые зависимые значения будут очищены.
+                В базе данных изменения выполняются только после сохранения формы.
+            </div>
 
             @* Основной класс номенклатуры *@
             <div class="mb-3">
@@ -94,7 +101,7 @@
             </div>
 
             @* Класс SKU *@
-            <div class="mb-3">
+            <div class="mb-3" data-classification-field="sku">
                 <label asp-for="SelectedSkuClassId"
                        class="form-label">
                     Класс SKU
@@ -121,7 +128,7 @@
             </div>
 
             @* Тип продукта *@
-            <div class="mb-3">
+            <div class="mb-3" data-classification-field="product-type">
                 <label asp-for="SelectedProductTypeId"
                        class="form-label">
                     Тип продукта
@@ -148,7 +155,7 @@
             </div>
 
             @* Бренд *@
-            <div class="mb-3">
+            <div class="mb-3" data-classification-field="brand">
                 <label asp-for="SelectedBrandId"
                        class="form-label">
                     Бренд
@@ -201,4 +208,7 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+
+    <script src="~/js/nomenclatura-classifications.js"
+            asp-append-version="true"></script>
 }

@@ -9,6 +9,8 @@ namespace Verle.Controllers
 {
     public class NomenclaturasController : Controller
     {
+        private const int GoodsClassId = 1;
+        private const int FinishedProductSkuClassId = 1; 
         private readonly VerleContext _context;
         private readonly ILogger<NomenclaturasController> _logger;
 
@@ -509,10 +511,46 @@ namespace Verle.Controllers
 
         // Проверяет обязательные поля, уникальность Id1C
         // и существование выбранных классификаций.
+        // Очищает классификации, неприменимые к выбранным родительским значениям.
+        // Используется во всех сценариях создания и редактирования.
+        private void NormalizeClassifications(
+            NomenclaturaFormViewModel model)
+        {
+            var isGoods = model.SelectedClassId == GoodsClassId;
+
+            if (!isGoods)
+            {
+                model.SelectedSkuClassId = null;
+
+                // При повторном отображении формы Tag Helpers берут
+                // отправленное значение из ModelState раньше, чем из модели.
+                // Удаляем его, чтобы старый SKU не появился снова.
+                ModelState.Remove(
+                    nameof(NomenclaturaFormViewModel.SelectedSkuClassId));
+            }
+
+            var isFinishedProduct =
+                isGoods &&
+                model.SelectedSkuClassId == FinishedProductSkuClassId;
+
+            if (!isFinishedProduct)
+            {
+                model.SelectedProductTypeId = null;
+                model.SelectedBrandId = null;
+
+                ModelState.Remove(
+                    nameof(NomenclaturaFormViewModel.SelectedProductTypeId));
+
+                ModelState.Remove(
+                    nameof(NomenclaturaFormViewModel.SelectedBrandId));
+            }
+        }
         private async Task ValidateFormAsync(
             NomenclaturaFormViewModel model,
             int? currentId = null)
         {
+            NormalizeClassifications(model);
+
             var name = NormalizeName(model.Name);
             var id1C = NormalizeId1C(model.Id1C);
 
@@ -619,6 +657,7 @@ namespace Verle.Controllers
             Nomenclatura item,
             NomenclaturaFormViewModel model)
         {
+            NormalizeClassifications(model);
             // Основной класс номенклатуры.
             if (model.SelectedClassId is int classId)
             {

@@ -590,6 +590,49 @@ namespace Verle.Migrations
                     b.ToTable("productType", (string)null);
                 });
 
+            modelBuilder.Entity("Verle.Models.ProductionSpecification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("NomenclaturaIdInput")
+                        .HasColumnType("integer")
+                        .HasColumnName("nomenclaturaIdInput");
+
+                    b.Property<int>("NomenclaturaIdOutput")
+                        .HasColumnType("integer")
+                        .HasColumnName("nomenclaturaIdOutput");
+
+                    b.Property<decimal>("QuantityInput")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)")
+                        .HasColumnName("quantityInput");
+
+                    b.Property<decimal>("QuantityOutput")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)")
+                        .HasColumnName("quantityOutput");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NomenclaturaIdInput")
+                        .HasDatabaseName("IX_productionSpecifications_nomenclaturaIdInput");
+
+                    b.HasIndex("NomenclaturaIdOutput")
+                        .HasDatabaseName("IX_productionSpecifications_nomenclaturaIdOutput");
+
+                    b.ToTable("productionSpecifications", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_productionSpecifications_quantityInput_positive", "\"quantityInput\" > 0");
+
+                            t.HasCheckConstraint("CK_productionSpecifications_quantityOutput_positive", "\"quantityOutput\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("Verle.Models.Sale", b =>
                 {
                     b.Property<int>("Id")
@@ -981,6 +1024,25 @@ namespace Verle.Migrations
                         .IsRequired();
 
                     b.Navigation("Division");
+                });
+
+            modelBuilder.Entity("Verle.Models.ProductionSpecification", b =>
+                {
+                    b.HasOne("Verle.Models.Nomenclatura", "NomenclaturaInput")
+                        .WithMany()
+                        .HasForeignKey("NomenclaturaIdInput")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Verle.Models.Nomenclatura", "NomenclaturaOutput")
+                        .WithMany()
+                        .HasForeignKey("NomenclaturaIdOutput")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("NomenclaturaInput");
+
+                    b.Navigation("NomenclaturaOutput");
                 });
 
             modelBuilder.Entity("Verle.Models.Sale", b =>
