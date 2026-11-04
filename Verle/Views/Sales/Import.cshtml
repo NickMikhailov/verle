@@ -232,7 +232,8 @@
                 <tbody>
                     @foreach (var item in Model.UnknownNomenclaturas)
                     {
-                        <tr class="js-reference-row">
+                        <tr class="js-reference-row"
+                            data-nomenclatura-classifications>
                             <td>
                                 @item.Id1C
 
@@ -268,7 +269,9 @@
                             <td>
                                 <select name="SelectedSkuClassId"
                                         class="form-select form-select-sm"
-                                        aria-label="Класс SKU для @item.Id1C">
+                                        aria-label="Класс SKU для @item.Id1C"
+                                        disabled>
+                                    
 
                                     <option value="">— Не выбран —</option>
 
@@ -279,6 +282,10 @@
                                         </option>
                                     }
                                 </select>
+                                <div class="form-text"
+                                     data-sku-class-hint>
+                                    Класс SKU доступен только для класса «Товар».
+                                </div>
                             </td>
 
                             <td>
@@ -333,6 +340,10 @@
 
 @section Scripts
 {
+    <script src="~/js/nomenclatura-classifications.js"
+             asp-append-version="true"></script>
+
+    <script>
     <script>
         (() => {
             "use strict";
@@ -550,9 +561,13 @@
 
                     const formData = new FormData();
 
-                    for (const field of fields) {
-                        formData.append(field.name, field.value);
-                    }
+                        for (const field of fields) {
+                            if (field.disabled) {
+                                continue;
+                            }
+
+                            formData.append(field.name, field.value);
+                        }
 
                     formData.append(
                         "__RequestVerificationToken",
@@ -658,14 +673,16 @@
                         pendingRequests--;
                         updateImportState();
 
-                        if (!saved) {
-                            button.disabled = false;
-                            button.textContent = "Добавить";
+                            if (!saved) {
+                                button.disabled = false;
+                                button.textContent = "Добавить";
 
-                            for (const field of fields) {
-                                field.disabled = false;
+                                for (const field of fields) {
+                                    field.disabled = false;
+                                }
+
+                                window.NomenclaturaClassifications?.refresh(row);
                             }
-                        }
                     }
                 });
             }

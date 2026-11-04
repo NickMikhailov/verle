@@ -1,0 +1,324 @@
+﻿@model Verle.ViewModels.ProductionSpecificationImportViewModel
+
+@{
+    ViewData["Title"] = "Импорт производственных спецификаций";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<p>
+    CSV с разделителем <strong>;</strong>.
+    Рекомендуемая кодировка — UTF-8.
+    Максимум 5 МБ и 10 000 строк данных.
+</p>
+
+<p>
+    Обязательные заголовки:
+</p>
+
+<pre class="border rounded p-3">nomenclaturaId1COutput;nameOutput;nomenclaturaId1CInput;nameInput;quantityInput;quantityOutput</pre>
+
+<div class="alert alert-warning">
+    Импорт добавляет новые строки, не заменяя существующие.
+    Повторная загрузка того же файла создаст повторные записи.
+</div>
+
+@if (Model.ImportedCount is int importedCount)
+{
+    <div class="alert alert-success" role="status">
+        Импорт завершён. Добавлено строк: @importedCount.
+    </div>
+}
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="alert alert-danger" role="alert">
+        <strong>Исправьте ошибки:</strong>
+
+        <ul class="mb-0 mt-2">
+            @foreach (var error in Model.Errors.Take(100))
+            {
+                <li>@error</li>
+            }
+        </ul>
+
+        @if (Model.Errors.Count > 100)
+        {
+            <p class="mt-2 mb-0">
+                Показаны первые 100 ошибок.
+                Всего: @Model.Errors.Count.
+            </p>
+        }
+    </div>
+}
+
+@if (Model.Checked && Model.ImportedCount == null)
+{
+    <p>
+        Прочитано строк данных: <strong>@Model.RowCount</strong>.
+        Отсутствующих номенклатур:
+        <strong>@Model.MissingNomenclaturas.Count</strong>.
+    </p>
+}
+
+@if (Model.CanImport)
+{
+    <div class="alert alert-success">
+        Проверка пройдена. Повторно выберите этот же файл
+        и нажмите «Импортировать».
+        Перед сохранением файл будет проверен ещё раз.
+    </div>
+}
+
+<form asp-action="Import"
+      method="post"
+      enctype="multipart/form-data"
+      class="mb-4">
+
+    <div class="mb-3">
+        <label for="specification-file" class="form-label">
+            CSV-файл
+        </label>
+
+        <input type="file"
+               id="specification-file"
+               name="file"
+               accept=".csv"
+               class="form-control"
+               required />
+
+        <div class="form-text">
+            После отправки формы браузер не сохраняет выбор файла.
+            Для следующей проверки или импорта выберите его повторно.
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        <button type="submit"
+                name="command"
+                value="validate"
+                class="btn btn-outline-primary">
+            Проверить
+        </button>
+
+        @if (Model.CanImport)
+        {
+            <button type="submit"
+                    name="command"
+                    value="import"
+                    class="btn btn-primary">
+                Импортировать
+            </button>
+        }
+
+        <a asp-action="Index"
+           class="btn btn-outline-secondary">
+            К списку
+        </a>
+    </div>
+</form>
+
+@if (Model.MissingNomenclaturas.Count > 0)
+{
+    <h2 class="h4">Отсутствующие номенклатуры</h2>
+
+    <p>
+        Добавьте нужные позиции, затем повторно выберите CSV
+        и нажмите «Проверить».
+        Создание номенклатуры само по себе не импортирует спецификации.
+    </p>
+
+    @foreach (var item in Model.MissingNomenclaturas)
+    {
+        <form asp-controller="Nomenclaturas"
+              asp-action="CreateFromImport"
+              method="post"
+              asp-antiforgery="true"
+              class="js-missing-nomenclatura card card-body mb-3"
+              data-nomenclatura-classifications>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">
+                        Код 1С
+                        <input name="Id1C"
+                               value="@item.Id1C"
+                               class="form-control"
+                               readonly />
+                    </label>
+                </div>
+
+                <div class="col-md-8">
+                    <label class="form-label w-100">
+                        Название из CSV
+                        <input name="Name"
+                               value="@item.Name"
+                               class="form-control"
+                               readonly />
+                    </label>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label w-100">
+                        Класс номенклатуры
+                        <select name="SelectedClassId"
+                                asp-items="Model.Options.ClassOptions"
+                                class="form-select">
+                            <option value="">— Не выбран —</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label w-100">
+                        Класс SKU
+                        <select name="SelectedSkuClassId"
+                                asp-items="Model.Options.SkuClassOptions"
+                                class="form-select"
+                                disabled>
+                            <option value="">— Не выбран —</option>
+                        </select>
+                    </label>
+                    <div class="form-text"
+                         data-sku-class-hint>
+                        Класс SKU доступен только для класса «Товар».
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label w-100">
+                        Тип продукта
+                        <select name="SelectedProductTypeId"
+                                asp-items="Model.Options.ProductTypeOptions"
+                                class="form-select">
+                            <option value="">— Не выбран —</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label w-100">
+                        Бренд
+                        <select name="SelectedBrandId"
+                                asp-items="Model.Options.BrandOptions"
+                                class="form-select">
+                            <option value="">— Не выбран —</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-success">
+                    Добавить номенклатуру
+                </button>
+            </div>
+
+            <div class="js-result mt-2"
+                 role="status"
+                 aria-live="polite"></div>
+        </form>
+    }
+}
+
+@section Scripts {
+    <script src="~/js/nomenclatura-classifications.js"
+            asp-append-version="true"></script>
+
+    <script>
+        <script>
+        (() => {
+            "use strict";
+
+            document.querySelectorAll(
+                ".js-missing-nomenclatura"
+            ).forEach(form => {
+                let submitting = false;
+
+                form.addEventListener("submit", async event => {
+                    event.preventDefault();
+
+                    if (submitting) {
+                        return;
+                    }
+
+                    submitting = true;
+
+                    const button =
+                        form.querySelector('button[type="submit"]');
+
+                    const result = form.querySelector(".js-result");
+
+                    button.disabled = true;
+                    result.className = "js-result mt-2 text-muted";
+                    result.textContent = "Сохранение…";
+
+                    try {
+                        // FormData включает antiforgery-токен,
+                        // который создаёт Form Tag Helper.
+                        const response = await fetch(form.action, {
+                            method: "POST",
+                            body: new FormData(form),
+                            credentials: "same-origin",
+                            headers: {
+                                "Accept": "application/json"
+                            }
+                        });
+
+                        const contentType =
+                            response.headers.get("content-type") || "";
+
+                        if (response.redirected ||
+                            !contentType.includes("application/json")) {
+                            throw new Error(
+                                "Сервер не вернул ожидаемый ответ. " +
+                                "Проверьте авторизацию и обновите страницу."
+                            );
+                        }
+
+                        const data = await response.json();
+
+                        if (!response.ok || data.success !== true) {
+                            const messages = Object.values(
+                                data.errors || {}
+                            ).flat();
+
+                            throw new Error(
+                                messages.length > 0
+                                    ? messages.join(" ")
+                                    : "Не удалось добавить номенклатуру."
+                            );
+                        }
+
+                        result.className =
+                            "js-result mt-2 text-success";
+
+                        result.textContent =
+                            "Номенклатура добавлена. " +
+                            "После добавления остальных позиций " +
+                            "повторно проверьте CSV.";
+
+                        form.querySelectorAll(
+                            "input, select, button"
+                        ).forEach(element => {
+                            element.disabled = true;
+                        });
+                    }
+                    catch (error) {
+                        result.className =
+                            "js-result mt-2 text-danger";
+
+                        result.textContent =
+                            error.message ||
+                            "Не удалось выполнить запрос.";
+
+                        button.disabled = false;
+                    }
+                    finally {
+                        submitting = false;
+                    }
+                });
+            });
+        })();
+    </script>
+}

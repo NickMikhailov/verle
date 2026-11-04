@@ -65,6 +65,8 @@ namespace Verle.Data
             Set<DripSemiproductOrder>();
         public DbSet<DripSemiproductOrderExecution> DripSemiproductOrderExecutions =>
             Set<DripSemiproductOrderExecution>();
+        public DbSet<ProductionSpecification> ProductionSpecifications =>
+            Set<ProductionSpecification>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -626,7 +628,62 @@ namespace Verle.Data
                     .HasForeignKey<DripSemiproductOrderExecution>(x => x.OrderId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
+            // Производственные спецификации.
+            modelBuilder.Entity<ProductionSpecification>(entity =>
+            {
+                entity.ToTable("productionSpecifications", table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_productionSpecifications_quantityInput_positive",
+                        "\"quantityInput\" > 0");
 
+                    table.HasCheckConstraint(
+                        "CK_productionSpecifications_quantityOutput_positive",
+                        "\"quantityOutput\" > 0");
+                });
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.NomenclaturaIdOutput)
+                    .HasColumnName("nomenclaturaIdOutput")
+                    .IsRequired();
+
+                entity.Property(x => x.NomenclaturaIdInput)
+                    .HasColumnName("nomenclaturaIdInput")
+                    .IsRequired();
+
+                entity.Property(x => x.QuantityInput)
+                    .HasColumnName("quantityInput")
+                    .HasPrecision(18, 6)
+                    .IsRequired();
+
+                entity.Property(x => x.QuantityOutput)
+                    .HasColumnName("quantityOutput")
+                    .HasPrecision(18, 6)
+                    .IsRequired();
+
+                entity.HasOne(x => x.NomenclaturaOutput)
+                    .WithMany()
+                    .HasForeignKey(x => x.NomenclaturaIdOutput)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.NomenclaturaInput)
+                    .WithMany()
+                    .HasForeignKey(x => x.NomenclaturaIdInput)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => x.NomenclaturaIdOutput)
+                    .HasDatabaseName(
+                        "IX_productionSpecifications_nomenclaturaIdOutput");
+
+                entity.HasIndex(x => x.NomenclaturaIdInput)
+                    .HasDatabaseName(
+                        "IX_productionSpecifications_nomenclaturaIdInput");
+            });
 
             // Основной класс номенклатуры.
             modelBuilder.Entity<NomenclaturaClassLink>(entity =>

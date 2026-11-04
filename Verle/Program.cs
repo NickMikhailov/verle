@@ -19,7 +19,7 @@ builder.Services.AddDbContext<VerleContext>(options =>
 
 //Пользовательские сервисы
 builder.Services.AddScoped<SalesImportService>();
-
+builder.Services.AddScoped<ProductionSpecificationImportService>();
 
 var app = builder.Build();
 
