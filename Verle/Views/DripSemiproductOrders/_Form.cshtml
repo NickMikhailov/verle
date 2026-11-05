@@ -5,259 +5,450 @@
 
 <input type="hidden" asp-for="Id" />
 
+@* Первая строка: ID заказа, дата, смена. *@
 <div class="row">
-    <div class="col-md-6 mb-3">
-        <label asp-for="Id1C" class="form-label"></label>
-        <input asp-for="Id1C" class="form-control" />
+    <div class="col-md-4 mb-3">
+        <label asp-for="Id1C" class="form-label">
+            ID заказа из 1С
+        </label>
+
+        <input asp-for="Id1C"
+               class="form-control" />
+
         <span asp-validation-for="Id1C"
               class="text-danger"></span>
     </div>
 
-    <div class="col-md-6 mb-3">
-        <label asp-for="OrderDate" class="form-label"></label>
+    <div class="col-md-4 mb-3">
+        <label asp-for="OrderDate" class="form-label">
+            Дата
+        </label>
+
         <input asp-for="OrderDate"
                type="date"
                asp-format="{0:yyyy-MM-dd}"
                class="form-control" />
+
         <span asp-validation-for="OrderDate"
               class="text-danger"></span>
     </div>
-</div>
 
-<div class="mb-3">
-    <label for="NomenclaturaSearch" class="form-label">
-        Поиск номенклатуры
-    </label>
-
-    <div class="input-group">
-        <input id="NomenclaturaSearch"
-               type="search"
-               class="form-control"
-               placeholder="Введите часть кода 1С или названия"
-               autocomplete="off"
-               aria-describedby="NomenclaturaSearchStatus" />
-
-        <button id="ClearNomenclaturaSearch"
-                type="button"
-                class="btn btn-outline-secondary">
-            Сбросить поиск
-        </button>
-    </div>
-
-    <div id="NomenclaturaSearchStatus"
-         class="form-text"
-         role="status"
-         aria-live="polite">
-    </div>
-</div>
-
-<div class="mb-3">
-    <label asp-for="NomenclaturaId" class="form-label"></label>
-
-    <select asp-for="NomenclaturaId"
-            asp-items="ViewBag.Nomenclaturas"
-            class="form-select">
-        <option value="">— Выберите номенклатуру —</option>
-    </select>
-
-    <span asp-validation-for="NomenclaturaId"
-          class="text-danger"></span>
-
-    <div class="form-text">
-        Доступны только номенклатуры с классом SKU «Полуфабрикат».
-        Можно выбрать из полного списка или предварительно найти
-        по коду 1С либо названию.
-    </div>
-</div>
-
-<div class="row">
     <div class="col-md-4 mb-3">
-        <label for="NomenclaturaCode" class="form-label">
-            Код номенклатуры в 1С
+        <label asp-for="ShiftId" class="form-label">
+            Смена
         </label>
 
-        <input id="NomenclaturaCode"
-               type="text"
-               class="form-control"
-               readonly />
-    </div>
-
-    <div class="col-md-8 mb-3">
-        <label for="NomenclaturaName" class="form-label">
-            Наименование номенклатуры
-        </label>
-
-        <input id="NomenclaturaName"
-               type="text"
-               class="form-control"
-               readonly />
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-4 mb-3">
-        <label for="NomenclaturaCode" class="form-label">
-            Код номенклатуры в 1С
-        </label>
-        <input id="NomenclaturaCode"
-               type="text"
-               class="form-control"
-               readonly />
-    </div>
-
-    <div class="col-md-8 mb-3">
-        <label for="NomenclaturaName" class="form-label">
-            Наименование номенклатуры
-        </label>
-        <input id="NomenclaturaName"
-               type="text"
-               class="form-control"
-               readonly />
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-4 mb-3">
-        <label asp-for="ShiftId" class="form-label"></label>
         <select asp-for="ShiftId"
                 asp-items="ViewBag.Shifts"
                 class="form-select">
             <option value="">— Выберите смену —</option>
         </select>
+
         <span asp-validation-for="ShiftId"
               class="text-danger"></span>
     </div>
+</div>
+
+@* Вторая строка: номенклатура — 2/3, поиск — 1/3. *@
+<div class="row">
+    <div class="col-md-8 mb-3">
+        <label asp-for="NomenclaturaId"
+               id="NomenclaturaLabel"
+               class="form-label"></label>
+
+        @* Исходное поле сохраняет привязку к модели и валидацию.
+           После инициализации JS оно визуально скрывается. *@
+        <div id="NomenclaturaNative">
+            <select asp-for="NomenclaturaId"
+                    asp-items="ViewBag.Nomenclaturas"
+                    class="form-select">
+                <option value="">— Выберите номенклатуру —</option>
+            </select>
+        </div>
+
+        <div id="NomenclaturaPicker" hidden>
+            <button id="NomenclaturaToggle"
+                    type="button"
+                    class="form-select text-start"
+                    style="cursor: pointer;"
+                    aria-expanded="false"
+                    aria-controls="NomenclaturaPanel"
+                    aria-describedby="NomenclaturaHelp">
+                <span id="NomenclaturaSelectedText">
+                    — Выберите номенклатуру —
+                </span>
+            </button>
+
+            <div id="NomenclaturaPanel"
+                 class="border rounded mt-2 bg-white"
+                 hidden>
+                <div class="d-flex justify-content-between align-items-center border-bottom p-2">
+                    <span class="small text-muted">
+                        Выберите номенклатуру
+                    </span>
+
+                    <button id="NomenclaturaClose"
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary">
+                        Закрыть
+                    </button>
+                </div>
+
+                <div id="NomenclaturaOptions"
+                     role="group"
+                     aria-label="Варианты номенклатуры"
+                     style="max-height: 320px; overflow-y: auto;">
+                </div>
+            </div>
+        </div>
+
+        <span asp-validation-for="NomenclaturaId"
+              class="text-danger"></span>
+
+        <div id="NomenclaturaHelp" class="form-text">
+            Доступны только номенклатуры с классом SKU «Полуфабрикат».
+            Открытый список не закрывается при переходе в поиск.
+        </div>
+    </div>
 
     <div class="col-md-4 mb-3">
-        <label asp-for="FusoId" class="form-label"></label>
+        <label for="NomenclaturaSearch" class="form-label">
+            Поиск номенклатуры
+        </label>
+
+        <div class="input-group">
+            <input id="NomenclaturaSearch"
+                   type="search"
+                   class="form-control"
+                   placeholder="Код 1С или название"
+                   autocomplete="off"
+                   aria-describedby="NomenclaturaSearchStatus" />
+
+            <button id="ClearNomenclaturaSearch"
+                    type="button"
+                    class="btn btn-outline-secondary">
+                Сбросить
+            </button>
+        </div>
+
+        <div id="NomenclaturaSearchStatus"
+             class="form-text"
+             role="status"
+             aria-live="polite">
+        </div>
+    </div>
+</div>
+
+@* Код и наименование: один блок, без дублирования. *@
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <label for="NomenclaturaCode" class="form-label">
+            Код номенклатуры в 1С
+        </label>
+
+        <input id="NomenclaturaCode"
+               type="text"
+               class="form-control"
+               readonly />
+    </div>
+
+    <div class="col-md-8 mb-3">
+        <label for="NomenclaturaName" class="form-label">
+            Наименование номенклатуры
+        </label>
+
+        <input id="NomenclaturaName"
+               type="text"
+               class="form-control"
+               readonly />
+    </div>
+</div>
+
+@* План и комментарий в одной строке. *@
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <label asp-for="Plan" class="form-label"></label>
+
+        <input asp-for="Plan"
+               type="text"
+               inputmode="decimal"
+               class="form-control" />
+
+        <span asp-validation-for="Plan"
+              class="text-danger"></span>
+
+        <div class="form-text">
+            До трёх знаков после запятой.
+        </div>
+    </div>
+
+    <div class="col-md-8 mb-3">
+        <label asp-for="Comment" class="form-label"></label>
+
+        <textarea asp-for="Comment"
+                  rows="3"
+                  class="form-control"></textarea>
+
+        <span asp-validation-for="Comment"
+              class="text-danger"></span>
+    </div>
+</div>
+
+@* Последняя строка: машина FUSO. *@
+<div class="row">
+    <div class="col-12 mb-3">
+        <label asp-for="FusoId" class="form-label">
+            Машина FUSO
+        </label>
+
         <select asp-for="FusoId"
                 asp-items="ViewBag.Fusos"
                 class="form-select">
             <option value="">— Выберите машину —</option>
         </select>
+
         <span asp-validation-for="FusoId"
               class="text-danger"></span>
     </div>
-
-    <div class="col-md-4 mb-3">
-        <label asp-for="Plan" class="form-label"></label>
-        <input asp-for="Plan"
-               type="text"
-               inputmode="decimal"
-               class="form-control" />
-        <span asp-validation-for="Plan"
-              class="text-danger"></span>
-        <div class="form-text">
-            До трёх знаков после запятой.
-        </div>
-    </div>
-</div>
-
-<div class="mb-3">
-    <label asp-for="Comment" class="form-label"></label>
-    <textarea asp-for="Comment"
-              rows="3"
-              class="form-control"></textarea>
-    <span asp-validation-for="Comment"
-          class="text-danger"></span>
 </div>
 
 <script>
     (() => {
         const nomenclaturas = @Html.Raw(
             System.Text.Json.JsonSerializer.Serialize(
-            ViewData["NomenclaturaInfo"]));
+                ViewData["NomenclaturaInfo"]));
 
         const select = document.getElementById("NomenclaturaId");
+        const nativeContainer = document.getElementById(
+            "NomenclaturaNative");
+        const label = document.getElementById("NomenclaturaLabel");
+
+        const picker = document.getElementById("NomenclaturaPicker");
+        const toggle = document.getElementById("NomenclaturaToggle");
+        const selectedText = document.getElementById(
+            "NomenclaturaSelectedText");
+
+        const panel = document.getElementById("NomenclaturaPanel");
+        const options = document.getElementById("NomenclaturaOptions");
+        const closeButton = document.getElementById(
+            "NomenclaturaClose");
+
         const search = document.getElementById("NomenclaturaSearch");
         const clearButton = document.getElementById(
             "ClearNomenclaturaSearch");
-
         const status = document.getElementById(
             "NomenclaturaSearchStatus");
 
         const code = document.getElementById("NomenclaturaCode");
         const name = document.getElementById("NomenclaturaName");
 
-        if (!select || !search || !clearButton ||
-            !status || !code || !name) {
+        if (!select || !nativeContainer || !label ||
+            !picker || !toggle || !selectedText ||
+            !panel || !options || !closeButton ||
+            !search || !clearButton || !status ||
+            !code || !name) {
             return;
         }
 
         function normalize(value) {
-            return String(value ?? "").toLocaleLowerCase("ru-RU");
+            return String(value ?? "")
+                .toLocaleLowerCase("ru-RU");
         }
 
-        const items = (nomenclaturas ?? []).map(item => ({
-            value: String(item.id),
-            id1C: String(item.id1C ?? ""),
-            name: String(item.name ?? ""),
-            searchCode: normalize(item.id1C),
-            searchName: normalize(item.name)
-        }));
+        const infoById = new Map(
+            (nomenclaturas ?? []).map(item => [
+                String(item.id),
+                item
+            ])
+        );
+
+        // Берём только варианты, разрешённые сервером
+        // и переданные в исходный select.
+        const items = Array.from(select.options)
+            .filter(option => option.value !== "")
+            .map(option => {
+                const info = infoById.get(option.value);
+
+                const id1C = String(info?.id1C ?? "");
+                const itemName = String(
+                    info?.name ?? option.textContent.trim());
+
+                return {
+                    value: option.value,
+                    id1C,
+                    name: itemName,
+                    text: info
+                        ? `${id1C} — ${itemName}`
+                        : option.textContent.trim(),
+                    searchCode: normalize(id1C),
+                    searchName: normalize(itemName),
+                    searchText: normalize(option.textContent)
+                };
+            });
 
         const itemsById = new Map(
             items.map(item => [item.value, item])
         );
 
-        function createOption(item) {
-            return new Option(
-                `${item.id1C} — ${item.name}`,
-                item.value
+        function setOpen(isOpen) {
+            panel.hidden = !isOpen;
+            toggle.setAttribute(
+                "aria-expanded",
+                String(isOpen)
             );
         }
 
-        function updateNomenclatura() {
+        function updateSelectedFields() {
             const selected = itemsById.get(select.value);
+
+            selectedText.textContent =
+                selected?.text ?? "— Выберите номенклатуру —";
 
             code.value = selected?.id1C ?? "";
             name.value = selected?.name ?? "";
         }
 
-        function filterNomenclaturas() {
-            const query = normalize(search.value.trim());
+        function chooseItem(value) {
+            select.value = value;
 
-            // Поиск сам по себе не меняет выбранную
-            // номенклатуру в заказе.
-            const selectedValue = select.value;
-            const selectedItem = itemsById.get(selectedValue);
+            // События остаются доступными для валидации
+            // и других обработчиков формы.
+            select.dispatchEvent(
+                new Event("input", { bubbles: true })
+            );
+
+            select.dispatchEvent(
+                new Event("change", { bubbles: true })
+            );
+
+            // После перерисовки возвращаем фокус выбранной кнопке.
+            const selectedButton = Array.from(
+                options.querySelectorAll("button[data-value]")
+            ).find(button => button.dataset.value === value);
+
+            selectedButton?.focus({ preventScroll: true });
+
+            // Список намеренно не закрываем.
+        }
+
+        function createOptionButton(item) {
+            const isSelected = select.value === item.value;
+            const button = document.createElement("button");
+
+            button.type = "button";
+            button.dataset.value = item.value;
+
+            button.className =
+                "list-group-item list-group-item-action " +
+                "text-start text-break" +
+                (isSelected ? " active" : "");
+
+            button.setAttribute(
+                "aria-pressed",
+                String(isSelected)
+            );
+
+            if (item.value === "") {
+                button.textContent =
+                    "— Выберите номенклатуру —";
+            }
+            else {
+                const codeLine = document.createElement("div");
+                codeLine.textContent = item.id1C || item.text;
+
+                button.appendChild(codeLine);
+
+                if (item.id1C && item.name) {
+                    const nameLine = document.createElement("div");
+
+                    nameLine.className = "small";
+                    nameLine.textContent = item.name;
+
+                    button.appendChild(nameLine);
+                }
+            }
+
+            button.addEventListener("click", () => {
+                chooseItem(item.value);
+            });
+
+            return button;
+        }
+
+        function createCaption(text) {
+            const caption = document.createElement("div");
+
+            caption.className =
+                "small text-muted bg-light px-3 py-2";
+
+            caption.textContent = text;
+
+            return caption;
+        }
+
+        function renderOptions() {
+            const query = normalize(search.value.trim());
+            const selected = itemsById.get(select.value);
 
             const matches = items.filter(item =>
                 !query ||
                 item.searchCode.includes(query) ||
-                item.searchName.includes(query)
+                item.searchName.includes(query) ||
+                item.searchText.includes(query)
             );
 
             const selectedIsOutsideResults =
-                selectedItem !== undefined &&
-                !matches.some(item => item.value === selectedValue);
+                selected !== undefined &&
+                !matches.some(item => item.value === selected.value);
 
             const fragment = document.createDocumentFragment();
+            const list = document.createElement("div");
 
-            fragment.appendChild(
-                new Option("— Выберите номенклатуру —", "")
+            list.className = "list-group list-group-flush";
+
+            list.appendChild(
+                createOptionButton({
+                    value: "",
+                    id1C: "",
+                    name: "",
+                    text: ""
+                })
             );
 
-            // Сохраняем текущий выбор, даже если он
-            // не соответствует введённому поисковому запросу.
+            // Текущий выбор сохраняется, даже если не подходит
+            // под поисковый запрос.
             if (selectedIsOutsideResults) {
-                const group = document.createElement("optgroup");
+                list.appendChild(
+                    createCaption(
+                        "Текущий выбор — вне результатов поиска"
+                    )
+                );
 
-                group.label =
-                    "Текущий выбор — вне результатов поиска";
+                list.appendChild(
+                    createOptionButton(selected)
+                );
 
-                group.appendChild(createOption(selectedItem));
-                fragment.appendChild(group);
+                list.appendChild(
+                    createCaption("Результаты поиска")
+                );
             }
 
             for (const item of matches) {
-                fragment.appendChild(createOption(item));
+                list.appendChild(createOptionButton(item));
             }
 
-            select.replaceChildren(fragment);
+            if (matches.length === 0) {
+                list.appendChild(
+                    createCaption(
+                        items.length === 0
+                            ? "Нет доступных номенклатур."
+                            : "Совпадений не найдено."
+                    )
+                );
+            }
 
-            // Первое совпадение автоматически не выбирается.
-            select.value = selectedItem ? selectedValue : "";
+            fragment.appendChild(list);
+            options.replaceChildren(fragment);
 
             if (items.length === 0) {
                 status.textContent =
@@ -281,20 +472,78 @@
                         " Измените запрос или сбросьте поиск.";
                 }
             }
-
-            updateNomenclatura();
         }
 
-        search.addEventListener("input", filterNomenclaturas);
+        toggle.addEventListener("click", () => {
+            setOpen(panel.hidden);
+        });
+
+        closeButton.addEventListener("click", () => {
+            setOpen(false);
+            toggle.focus();
+        });
+
+        search.addEventListener("input", () => {
+            renderOptions();
+
+            // Поиск обновляет результаты, но не меняет
+            // выбранное значение и состояние раскрытия.
+        });
 
         clearButton.addEventListener("click", () => {
             search.value = "";
-            filterNomenclaturas();
+            renderOptions();
             search.focus();
         });
 
-        select.addEventListener("change", filterNomenclaturas);
+        select.addEventListener("change", () => {
+            updateSelectedFields();
+            renderOptions();
+        });
 
-        filterNomenclaturas();
+        // Если валидация переводит фокус на исходное поле,
+        // показываем пользователю его видимый элемент управления.
+        select.addEventListener("focus", () => {
+            setOpen(true);
+            toggle.focus();
+        });
+
+        const pickerRow = picker.closest(".row");
+
+        pickerRow.addEventListener("keydown", event => {
+            if (event.key === "Escape" && !panel.hidden) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                setOpen(false);
+                toggle.focus();
+            }
+        });
+
+        // Корректно обновляем интерфейс при сбросе формы.
+        select.form?.addEventListener("reset", () => {
+            window.setTimeout(() => {
+                search.value = "";
+                updateSelectedFields();
+                renderOptions();
+                setOpen(false);
+            }, 0);
+        });
+
+        updateSelectedFields();
+        renderOptions();
+
+        // Визуально скрываем исходное поле только после
+        // успешной инициализации пользовательского списка.
+        // Не используем display:none, чтобы сохранить
+        // работу стандартной валидации поля.
+        nativeContainer.classList.add("visually-hidden");
+        select.tabIndex = -1;
+        select.setAttribute("aria-hidden", "true");
+
+        label.htmlFor = toggle.id;
+        picker.hidden = false;
+
+        setOpen(false);
     })();
 </script>
