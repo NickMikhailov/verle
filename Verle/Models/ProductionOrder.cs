@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Verle.Models
 {
-    public class DripSemiproductOrder
+    public class ProductionOrder
     {
         public int Id { get; set; }
 
@@ -24,16 +24,18 @@ namespace Verle.Models
 
         public Shift Shift { get; set; } = null!;
 
-        [Display(Name = "Машина FUSO")]
-        public int FusoId { get; set; }
+        [Display(Name = "Оборудование")]
+        public int EquipmentId { get; set; }
 
-        public Fuso Fuso { get; set; } = null!;
+        public Equipment Equipment { get; set; } = null!;
 
         [Display(Name = "Комментарий")]
         public string? Comment { get; set; }
 
         [Display(Name = "План")]
         public decimal Plan { get; set; }
-        public DripSemiproductOrderExecution? Execution { get; set; }
+        public ProductionOrderExecution? Execution { get; set; }
+        public int StatusId { get; set; } = 2;
+        public OrderStatus Status { get; set; } = null!;
     }
 }
