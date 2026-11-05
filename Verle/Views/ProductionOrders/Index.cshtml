@@ -87,49 +87,38 @@
                     </td>
 
                     <td>
-                        <div class="d-flex flex-column gap-1">
+                        @if (item.StatusId == 4)
+                        {
+                            <button type="button"
+                                    class="btn btn-sm btn-success">
+                                Утвердить
+                            </button>
 
-                            @* Редактирование доступно для черновика
-                        и для заказа со статусом «Создан». *@
-                            @if (item.StatusId == draftStatusId ||
-                           item.StatusId == createdStatusId)
+                            <button type="button"
+                                    class="btn btn-sm btn-danger">
+                                Отклонить
+                            </button>
+                        }
+                        else
+                        {
+                            @if (item.StatusId != 3)
                             {
                                 <a asp-action="Edit"
                                    asp-route-id="@item.Id"
-                                   class="btn btn-sm btn-outline-primary text-nowrap">
+                                   class="btn btn-sm btn-outline-primary">
                                     Изменить
                                 </a>
                             }
 
-                            @* Запуск исполнения доступен только для статуса «Создан». *@
-                            @if (item.StatusId == createdStatusId)
-                            {
-                                <form asp-controller="ProductionOrders"
-                                      asp-action="Execute"
-                                      asp-route-id="@item.Id"
-                                      method="post"
-                                      asp-antiforgery="true"
-                                      class="m-0">
-
-                                    <button type="submit"
-                                            class="btn btn-sm btn-success text-nowrap">
-                                        Выполнить
-                                    </button>
-                                </form>
-                            }
-
-                            @* После запуска исполнения кнопку «Изменить»
-                        не показываем, но оставляем доступ к форме исполнения. *@
-                            @if (item.StatusId == inExecutionStatusId)
+                            @if (item.StatusId == 2 || item.StatusId == 3)
                             {
                                 <a asp-action="Execute"
                                    asp-route-id="@item.Id"
-                                   class="btn btn-sm btn-success text-nowrap">
-                                    Открыть исполнение
+                                   class="btn btn-sm btn-outline-success">
+                                    @(item.StatusId == 2 ? "Выполнить" : "Открыть исполнение")
                                 </a>
                             }
-
-                        </div>
+                        }
                     </td>
                 </tr>
             }

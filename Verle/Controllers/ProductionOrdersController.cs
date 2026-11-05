@@ -16,6 +16,7 @@ namespace Verle.Controllers
         private const int DraftStatusId = 1;
         private const int CreatedStatusId = 2;
         private const int InExecutionStatusId = 3;
+        private const int MasterApprovalStatusId = 4;
 
         // ID класса SKU «Полуфабрикат».
         private const int SemiproductSkuClassId = 2;
@@ -333,13 +334,21 @@ namespace Verle.Controllers
             {
                 return NotFound();
             }
+            // Передаём текущий статус заказа в представление Execute.cshtml.
+            ViewBag.OrderStatusId = order.StatusId;
+
+            ViewBag.ExecutionStarted =
+                order.StatusId == InExecutionStatusId;
+
+            ViewBag.MasterApproval =
+                order.StatusId == MasterApprovalStatusId;
 
             if (order.StatusId != CreatedStatusId &&
-                order.StatusId != InExecutionStatusId)
+                order.StatusId != InExecutionStatusId &&
+                order.StatusId != MasterApprovalStatusId)
             {
                 TempData["ErrorMessage"] =
-                    "Форма исполнения доступна только для созданного " +
-                    "или исполняемого заказа.";
+                    "Форма выполнения недоступна для этого статуса заказа.";
 
                 return RedirectToAction(nameof(Index));
             }
@@ -433,6 +442,15 @@ namespace Verle.Controllers
             {
                 return NotFound();
             }
+            if (order.StatusId != InExecutionStatusId)
+            {
+                TempData["ErrorMessage"] =
+                    "Изменять фактические данные можно только для заказа «На исполнении».";
+
+                return RedirectToAction(
+                    nameof(Execute),
+                    new { id = order.Id });
+            }
 
             if (order.StatusId != InExecutionStatusId)
             {
@@ -489,7 +507,13 @@ namespace Verle.Controllers
 
             if (!ModelState.IsValid)
             {
-                ViewBag.ExecutionStarted = true;
+                ViewBag.OrderStatusId = order.StatusId;
+
+                ViewBag.ExecutionStarted =
+                    order.StatusId == InExecutionStatusId;
+
+                ViewBag.MasterApproval =
+                    order.StatusId == MasterApprovalStatusId;
 
                 FillExecutionOrderDetails(model, order);
 
@@ -521,6 +545,41 @@ namespace Verle.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // POST: ProductionOrders/Finish/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Finish(int id)
+        {
+            var order = await _context.ProductionOrders
+                .SingleOrDefaultAsync(x => x.Id == id);
+
+            if (order == null)
+            {
+                return NotFound();
+            }
+
+            if (order.StatusId != InExecutionStatusId)
+            {
+                TempData["ErrorMessage"] =
+                    "Завершить можно только заказ со статусом «На исполнении».";
+
+                return RedirectToAction(
+                    nameof(Execute),
+                    new { id = order.Id });
+            }
+
+            order.StatusId = MasterApprovalStatusId;
+
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] =
+                "Заказ передан на утверждение мастера.";
+
+            return RedirectToAction(
+                nameof(Execute),
+                new { id = order.Id });
+        }
+        
         // Общий запрос со связанными данными.
         private IQueryable<ProductionOrder> QueryWithReferences()
         {
