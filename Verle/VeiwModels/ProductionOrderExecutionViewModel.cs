@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Verle.ViewModels
 {
-    public class DripSemiproductOrderExecutionViewModel
+    public class ProductionOrderExecutionViewModel
     {
         public int Id { get; set; }
 

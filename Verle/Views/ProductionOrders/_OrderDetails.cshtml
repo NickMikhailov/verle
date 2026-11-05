@@ -1,4 +1,4 @@
-﻿@model Verle.Models.DripSemiproductOrder
+﻿@model ProductionOrder
 
 <dl class="row">
     <dt class="col-sm-3">ID</dt>
@@ -22,7 +22,7 @@
     <dd class="col-sm-9">@Model.Shift.Name</dd>
 
     <dt class="col-sm-3">Машина FUSO</dt>
-    <dd class="col-sm-9">@Model.Fuso.FusoNumber</dd>
+    <dd class="col-sm-9">@Model.Equipment.EquipmentName</dd>
 
     <dt class="col-sm-3">План</dt>
     <dd class="col-sm-9">@Model.Plan.ToString("N3")</dd>

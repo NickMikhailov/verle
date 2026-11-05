@@ -3,13 +3,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Verle.Models
 {
-    public class Fuso
+    public class Equipment
     {
         public int Id { get; set; }
 
         [Required]
-        [Display(Name = "Номер машины")]
-        public string FusoNumber { get; set; } = string.Empty;
+        [Display(Name = "Наименование оборудования")]
+        public string EquipmentName { get; set; } = string.Empty;
 
         [Display(Name = "Дата ввода в эксплуатацию")]
         public DateOnly CommissioningDate { get; set; }

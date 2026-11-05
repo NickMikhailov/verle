@@ -46,8 +46,8 @@ namespace Verle.Data
             Set<Sale>();
         public DbSet<Unit> Units =>
             Set<Unit>();
-        public DbSet<Fuso> Fusos =>
-            Set<Fuso>();
+        public DbSet<Equipment> Equipments =>
+            Set<Equipment>();
         public DbSet<Shift> Shifts => 
             Set<Shift>();
         public DbSet<LegalEntity> LegalEntities =>
@@ -61,12 +61,16 @@ namespace Verle.Data
         public DbSet<Position> Positions => 
             Set<Position>();
         public DbSet<Employee> Employees => Set<Employee>();
-        public DbSet<DripSemiproductOrder> DripSemiproductOrders =>
-            Set<DripSemiproductOrder>();
-        public DbSet<DripSemiproductOrderExecution> DripSemiproductOrderExecutions =>
-            Set<DripSemiproductOrderExecution>();
+        public DbSet<ProductionOrder> ProductionOrders =>
+            Set<ProductionOrder>();
+        public DbSet<ProductionOrderExecution> ProductionOrderExecutions =>
+            Set<ProductionOrderExecution>();
         public DbSet<ProductionSpecification> ProductionSpecifications =>
             Set<ProductionSpecification>();
+        public DbSet<OrderStatus> OrderStatuses =>
+            Set<OrderStatus>();
+        public DbSet<ProductionUnit> ProductionUnits =>
+            Set<ProductionUnit>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -323,9 +327,9 @@ namespace Verle.Data
                     .HasMaxLength(100)
                     .IsRequired();
             });
-            modelBuilder.Entity<Fuso>(entity =>
+            modelBuilder.Entity<Equipment>(entity =>
             {
-                entity.ToTable("FUSO");
+                entity.ToTable("equipment");
 
                 entity.HasKey(x => x.Id);
 
@@ -333,8 +337,8 @@ namespace Verle.Data
                     .HasColumnName("id")
                     .ValueGeneratedOnAdd();
 
-                entity.Property(x => x.FusoNumber)
-                    .HasColumnName("fusoNumber")
+                entity.Property(x => x.EquipmentName)
+                    .HasColumnName("name")
                     .IsRequired();
 
                 entity.Property(x => x.CommissioningDate)
@@ -431,7 +435,7 @@ namespace Verle.Data
             });
             modelBuilder.Entity<Department>(entity =>
             {
-                entity.ToTable("Department");
+                entity.ToTable("department");
 
                 entity.HasKey(x => x.Id);
 
@@ -475,7 +479,7 @@ namespace Verle.Data
             });
             modelBuilder.Entity<Position>(entity =>
             {
-                entity.ToTable("Position");
+                entity.ToTable("position");
 
                 entity.HasKey(x => x.Id);
 
@@ -503,7 +507,7 @@ namespace Verle.Data
             });
             modelBuilder.Entity<Employee>(entity =>
             {
-                entity.ToTable("employees");
+                entity.ToTable("employee");
 
                 entity.HasKey(x => x.Id);
 
@@ -540,10 +544,10 @@ namespace Verle.Data
                     .HasForeignKey(x => x.PositionId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
-            // Заказы на производство полуфабрикатов дрип-пакетов.
-            modelBuilder.Entity<DripSemiproductOrder>(entity =>
+            // Заказы на производство 
+            modelBuilder.Entity<ProductionOrder>(entity =>
             {
-                entity.ToTable("DripSemiproductOrders");
+                entity.ToTable("productionOrder");
 
                 entity.HasKey(x => x.Id);
 
@@ -574,7 +578,7 @@ namespace Verle.Data
                     .HasDefaultValue(1)
                     .IsRequired();
 
-                entity.Property(x => x.FusoId)
+                entity.Property(x => x.EquipmentId)
                     .HasColumnName("fusoId")
                     .IsRequired();
 
@@ -598,14 +602,24 @@ namespace Verle.Data
                     .HasForeignKey(x => x.ShiftId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasOne(x => x.Fuso)
+                entity.HasOne(x => x.Equipment)
                     .WithMany()
-                    .HasForeignKey(x => x.FusoId)
+                    .HasForeignKey(x => x.EquipmentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(x => x.StatusId)
+                    .HasColumnName("statusId")
+                    .HasDefaultValue(2)
+                    .IsRequired();
+
+                entity.HasOne(x => x.Status)
+                    .WithMany()
+                    .HasForeignKey(x => x.StatusId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
-            modelBuilder.Entity<DripSemiproductOrderExecution>(entity =>
+            modelBuilder.Entity<ProductionOrderExecution>(entity =>
             {
-                entity.ToTable("DripSemiproductOrderExecutions");
+                entity.ToTable("productionOrderExecution");
 
                 entity.HasKey(x => x.OrderId);
 
@@ -625,13 +639,13 @@ namespace Verle.Data
 
                 entity.HasOne(x => x.Order)
                     .WithOne(x => x.Execution)
-                    .HasForeignKey<DripSemiproductOrderExecution>(x => x.OrderId)
+                    .HasForeignKey<ProductionOrderExecution>(x => x.OrderId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
             // Производственные спецификации.
             modelBuilder.Entity<ProductionSpecification>(entity =>
             {
-                entity.ToTable("productionSpecifications", table =>
+                entity.ToTable("productionSpecification", table =>
                 {
                     table.HasCheckConstraint(
                         "CK_productionSpecifications_quantityInput_positive",
@@ -684,6 +698,109 @@ namespace Verle.Data
                     .HasDatabaseName(
                         "IX_productionSpecifications_nomenclaturaIdInput");
             });
+            modelBuilder.Entity<OrderStatus>(entity =>
+            {
+                entity.ToTable("orderStatus");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedNever();
+
+                entity.Property(x => x.Name)
+                    .HasColumnName("name")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.HasIndex(x => x.Name)
+                    .IsUnique();
+
+                entity.HasData(
+                    new OrderStatus
+                    {
+                        Id = 1,
+                        Name = "Редактируется"
+                    },
+                    new OrderStatus
+                    {
+                        Id = 2,
+                        Name = "Создан"
+                    },
+                    new OrderStatus
+                    {
+                        Id = 3,
+                        Name = "На исполнении"
+                    },
+                    new OrderStatus
+                    {
+                        Id = 4,
+                        Name = "На утверждении мастера"
+                    },
+                    new OrderStatus
+                    {
+                        Id = 5,
+                        Name = "На утверждении операционистом"
+                    },
+                    new OrderStatus
+                    {
+                        Id = 6,
+                        Name = "Выполнен"
+                    }
+                );
+            });
+            modelBuilder.Entity<ProductionUnit>(entity =>
+            {
+                entity.ToTable("productionUnit");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.Name)
+                    .HasColumnName("name")
+                    .HasMaxLength(150)
+                    .IsRequired();
+
+                entity.HasIndex(x => x.Name)
+                    .IsUnique()
+                    .HasDatabaseName("UX_productionUnits_name");
+
+                entity.HasData(
+                    new ProductionUnit
+                    {
+                        Id = 1,
+                        Name = "Обжарка"
+                    },
+                    new ProductionUnit
+                    {
+                        Id = 2,
+                        Name = "Фасовка зерна (ручка)"
+                    },
+                    new ProductionUnit
+                    {
+                        Id = 3,
+                        Name = "Фасовка зерна (СИА)"
+                    },
+                    new ProductionUnit
+                    {
+                        Id = 4,
+                        Name = "ПФ капсулы"
+                    },
+                    new ProductionUnit
+                    {
+                        Id = 5,
+                        Name = "ПФ Дрипы"
+                    },
+                    new ProductionUnit
+                    {
+                        Id = 6,
+                        Name = "Сборка ГП"
+                    });
+            });
+
 
             // Основной класс номенклатуры.
             modelBuilder.Entity<NomenclaturaClassLink>(entity =>
@@ -858,7 +975,6 @@ namespace Verle.Data
                     .HasForeignKey(x => x.CounterpartGroupId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
-
             // Каналы продаж
             modelBuilder.Entity<CounterpartGroupSalesChannelLink>(entity =>
             {

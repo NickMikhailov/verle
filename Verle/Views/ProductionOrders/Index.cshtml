@@ -1,4 +1,4 @@
-﻿@model System.Collections.Generic.IEnumerable<Verle.Models.DripSemiproductOrder>
+﻿@model System.Collections.Generic.IEnumerable<ProductionOrder>
 
 @{
     ViewData["Title"] = "ПФ Дрипы";
@@ -24,7 +24,7 @@
         <thead>
             <tr>
                 <th>Заказ в 1С</th>
-                <th>Дата, Смена</th>
+                <th>Дата</th>
                 <th>Номенклатура</th>
                 <th class="text-end">План</th>
                 <th class="text-end">Факт</th>
@@ -40,7 +40,6 @@
                     <td class="text-nowrap">
                         @item.Id1C
                     </td>
-
                     <td class="text-nowrap">
                         <div>
                             @item.OrderDate.ToString("dd.MM.yyyy")
@@ -64,7 +63,6 @@
                     <td class="text-end text-nowrap">
                         @item.Plan.ToString("N0")
                     </td>
-
                     <td class="text-end text-nowrap">
                         @(item.Execution == null
                             ? "—"
@@ -72,11 +70,10 @@
                     </td>
 
                     <td>
-                        @* Статус будет добавлен позже. *@
+                            @(item.Status?.Name ?? "—")
                     </td>
-
                     <td>
-                        <div class="d-flex gap-1">
+                        <div class="d-flex flex-column gap-1">
                             <a asp-action="Edit"
                                asp-route-id="@item.Id"
                                class="btn btn-sm btn-outline-primary">

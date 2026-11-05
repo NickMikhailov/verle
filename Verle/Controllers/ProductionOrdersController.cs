@@ -11,11 +11,11 @@ using Verle.ViewModels;
 
 namespace Verle.Controllers
 {
-    public class DripSemiproductOrdersController : Controller
+    public class ProductionOrdersController : Controller
     {
         private readonly VerleContext _context;
 
-        public DripSemiproductOrdersController(VerleContext context)
+        public ProductionOrdersController(VerleContext context)
         {
             _context = context;
         }
@@ -23,12 +23,13 @@ namespace Verle.Controllers
         // Список заказов.
         public async Task<IActionResult> Index()
         {
-            var orders = await _context.DripSemiproductOrders
+            var orders = await _context.ProductionOrders
                 .AsNoTracking()
                 .Include(x => x.Nomenclatura)
                 .Include(x => x.Shift)
-                .Include(x => x.Fuso)
+                .Include(x => x.Equipment)
                 .Include(x => x.Execution)
+                .Include(x => x.Status)
                 .OrderByDescending(x => x.OrderDate)
                 .ThenByDescending(x => x.Id)
                 .ToListAsync();
@@ -52,14 +53,14 @@ namespace Verle.Controllers
         {
             await LoadReferencesAsync();
 
-            return View(new DripSemiproductOrderFormViewModel());
+            return View(new ProductionOrderFormViewModel());
         }
 
         // Сохранение нового заказа.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(
-            DripSemiproductOrderFormViewModel model)
+            ProductionOrderFormViewModel model)
         {
             Normalize(model);
             await ValidateFormAsync(model);
@@ -70,18 +71,18 @@ namespace Verle.Controllers
                 return View(model);
             }
 
-            var order = new DripSemiproductOrder
+            var order = new ProductionOrder
             {
                 Id1C = model.Id1C,
                 OrderDate = model.OrderDate!.Value,
                 NomenclaturaId = model.NomenclaturaId!.Value,
                 ShiftId = model.ShiftId!.Value,
-                FusoId = model.FusoId!.Value,
+                EquipmentId = model.FusoId!.Value,
                 Comment = model.Comment,
                 Plan = model.Plan!.Value
             };
 
-            _context.DripSemiproductOrders.Add(order);
+            _context.ProductionOrders.Add(order);
 
             try
             {
@@ -105,21 +106,21 @@ namespace Verle.Controllers
         // Форма редактирования.
         public async Task<IActionResult> Edit(int id)
         {
-            var order = await _context.DripSemiproductOrders
+            var order = await _context.ProductionOrders
                 .AsNoTracking()
                 .SingleOrDefaultAsync(x => x.Id == id);
 
             if (order == null)
                 return NotFound();
 
-            var model = new DripSemiproductOrderFormViewModel
+            var model = new ProductionOrderFormViewModel
             {
                 Id = order.Id,
                 Id1C = order.Id1C,
                 OrderDate = order.OrderDate,
                 NomenclaturaId = order.NomenclaturaId,
                 ShiftId = order.ShiftId,
-                FusoId = order.FusoId,
+                FusoId = order.EquipmentId,
                 Comment = order.Comment,
                 Plan = order.Plan
             };
@@ -134,12 +135,12 @@ namespace Verle.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(
             int id,
-            DripSemiproductOrderFormViewModel model)
+            ProductionOrderFormViewModel model)
         {
             if (id != model.Id)
                 return BadRequest();
 
-            var order = await _context.DripSemiproductOrders
+            var order = await _context.ProductionOrders
                 .SingleOrDefaultAsync(x => x.Id == id);
 
             if (order == null)
@@ -158,7 +159,7 @@ namespace Verle.Controllers
             order.OrderDate = model.OrderDate!.Value;
             order.NomenclaturaId = model.NomenclaturaId!.Value;
             order.ShiftId = model.ShiftId!.Value;
-            order.FusoId = model.FusoId!.Value;
+            order.EquipmentId = model.FusoId!.Value;
             order.Comment = model.Comment;
             order.Plan = model.Plan!.Value;
 
@@ -168,7 +169,7 @@ namespace Verle.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!await _context.DripSemiproductOrders
+                if (!await _context.ProductionOrders
                     .AnyAsync(x => x.Id == id))
                 {
                     return NotFound();
@@ -207,13 +208,13 @@ namespace Verle.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var order = await _context.DripSemiproductOrders
+            var order = await _context.ProductionOrders
                 .SingleOrDefaultAsync(x => x.Id == id);
 
             if (order == null)
                 return NotFound();
 
-            _context.DripSemiproductOrders.Remove(order);
+            _context.ProductionOrders.Remove(order);
 
             try
             {
@@ -250,14 +251,14 @@ namespace Verle.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        private Task<DripSemiproductOrder?> GetOrderWithReferencesAsync(
+        private Task<ProductionOrder?> GetOrderWithReferencesAsync(
             int id)
         {
-            return _context.DripSemiproductOrders
+            return _context.ProductionOrders
                 .AsNoTracking()
                 .Include(x => x.Nomenclatura)
                 .Include(x => x.Shift)
-                .Include(x => x.Fuso)
+                .Include(x => x.Equipment)
                 .SingleOrDefaultAsync(x => x.Id == id);
         }
 
@@ -303,22 +304,22 @@ namespace Verle.Controllers
                 })
                 .ToList();
 
-            var fusos = await _context.Set<Fuso>()
+            var fusos = await _context.Set<Equipment>()
                 .AsNoTracking()
-                .OrderBy(x => x.FusoNumber)
+                .OrderBy(x => x.EquipmentName)
                 .ToListAsync();
 
             ViewBag.Fusos = fusos
                 .Select(x => new SelectListItem
                 {
                     Value = x.Id.ToString(),
-                    Text = x.FusoNumber
+                    Text = x.EquipmentName
                 })
                 .ToList();
         }
 
         private static void Normalize(
-            DripSemiproductOrderFormViewModel model)
+            ProductionOrderFormViewModel model)
         {
             model.Id1C = (model.Id1C ?? string.Empty).Trim();
 
@@ -329,7 +330,7 @@ namespace Verle.Controllers
 
         // Серверные проверки не зависят от JavaScript в браузере.
         private async Task ValidateFormAsync(
-            DripSemiproductOrderFormViewModel model)
+            ProductionOrderFormViewModel model)
         {
             if (string.IsNullOrWhiteSpace(model.Id1C))
             {
@@ -337,7 +338,7 @@ namespace Verle.Controllers
                     nameof(model.Id1C),
                     "Укажите ID заказа в 1С.");
             }
-            else if (await _context.DripSemiproductOrders
+            else if (await _context.ProductionOrders
                 .AnyAsync(x =>
                     x.Id1C == model.Id1C &&
                     x.Id != model.Id))
@@ -373,7 +374,7 @@ namespace Verle.Controllers
             }
 
             if (model.FusoId.HasValue &&
-                !await _context.Set<Fuso>()
+                !await _context.Set<Equipment>()
                     .AnyAsync(x => x.Id == model.FusoId.Value))
             {
                 ModelState.AddModelError(
@@ -395,9 +396,9 @@ namespace Verle.Controllers
             return exception.InnerException is PostgresException postgres &&
                    postgres.SqlState == PostgresErrorCodes.UniqueViolation &&
                    postgres.ConstraintName ==
-                       "UX_DripSemiproductOrders_id1C";
+                       "UX_ProductionOrders_id1C";
         }
-        // GET: DripSemiproductOrders/Execute/5
+        // GET: ProductOrders/Execute/5
         [HttpGet]
         public async Task<IActionResult> Execute(int id)
         {
@@ -408,7 +409,7 @@ namespace Verle.Controllers
                 return NotFound();
             }
 
-            var model = new DripSemiproductOrderExecutionViewModel
+            var model = new ProductionOrderExecutionViewModel
             {
                 Actual = order.Execution?.Actual,
                 Comment = order.Execution?.Comment
@@ -419,12 +420,12 @@ namespace Verle.Controllers
             return View(model);
         }
 
-        // POST: DripSemiproductOrders/Execute/5
+        // POST: ProductionOrders/Execute/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Execute(
             int id,
-            DripSemiproductOrderExecutionViewModel model)
+            ProductionOrderExecutionViewModel model)
         {
             if (id != model.Id)
             {
@@ -456,14 +457,14 @@ namespace Verle.Controllers
 
             if (order.Execution == null)
             {
-                var execution = new DripSemiproductOrderExecution
+                var execution = new ProductionOrderExecution
                 {
                     OrderId = order.Id,
                     Actual = model.Actual!.Value,
                     Comment = model.Comment
                 };
 
-                _context.DripSemiproductOrderExecutions.Add(execution);
+                _context.ProductionOrderExecutions.Add(execution);
             }
             else
             {
@@ -476,19 +477,19 @@ namespace Verle.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        private Task<DripSemiproductOrder?> GetOrderForExecutionAsync(int id)
+        private Task<ProductionOrder?> GetOrderForExecutionAsync(int id)
         {
-            return _context.DripSemiproductOrders
+            return _context.ProductionOrders
                 .Include(x => x.Nomenclatura)
                 .Include(x => x.Shift)
-                .Include(x => x.Fuso)
+                .Include(x => x.Equipment)
                 .Include(x => x.Execution)
                 .SingleOrDefaultAsync(x => x.Id == id);
         }
 
         private static void FillExecutionOrderDetails(
-            DripSemiproductOrderExecutionViewModel model,
-            DripSemiproductOrder order)
+            ProductionOrderExecutionViewModel model,
+            ProductionOrder order)
         {
             model.Id = order.Id;
             model.Id1C = order.Id1C;
@@ -498,7 +499,7 @@ namespace Verle.Controllers
             model.NomenclaturaName = order.Nomenclatura.Name;
 
             model.ShiftName = order.Shift.Name;
-            model.FusoNumber = order.Fuso.FusoNumber;
+            model.FusoNumber = order.Equipment.EquipmentName;
 
             model.Plan = order.Plan;
             model.OrderComment = order.Comment;

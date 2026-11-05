@@ -185,7 +185,7 @@ namespace Verle.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Department", (string)null);
+                    b.ToTable("department", (string)null);
                 });
 
             modelBuilder.Entity("Verle.Models.Division", b =>
@@ -214,82 +214,6 @@ namespace Verle.Migrations
                         .HasDatabaseName("UX_Division_DepartmentId_Name");
 
                     b.ToTable("division", (string)null);
-                });
-
-            modelBuilder.Entity("Verle.Models.DripSemiproductOrder", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Comment")
-                        .HasColumnType("text")
-                        .HasColumnName("comment");
-
-                    b.Property<int>("FusoId")
-                        .HasColumnType("integer")
-                        .HasColumnName("fusoId");
-
-                    b.Property<string>("Id1C")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("id1C");
-
-                    b.Property<int>("NomenclaturaId")
-                        .HasColumnType("integer")
-                        .HasColumnName("nomenclaturaId");
-
-                    b.Property<DateOnly>("OrderDate")
-                        .HasColumnType("date")
-                        .HasColumnName("orderDate");
-
-                    b.Property<decimal>("Plan")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("numeric(18,3)")
-                        .HasColumnName("plan");
-
-                    b.Property<int>("ShiftId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(1)
-                        .HasColumnName("shift");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FusoId");
-
-                    b.HasIndex("Id1C")
-                        .IsUnique()
-                        .HasDatabaseName("UX_DripSemiproductOrders_id1C");
-
-                    b.HasIndex("NomenclaturaId");
-
-                    b.HasIndex("ShiftId");
-
-                    b.ToTable("DripSemiproductOrders", (string)null);
-                });
-
-            modelBuilder.Entity("Verle.Models.DripSemiproductOrderExecution", b =>
-                {
-                    b.Property<int>("OrderId")
-                        .HasColumnType("integer")
-                        .HasColumnName("orderId");
-
-                    b.Property<decimal>("Actual")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("numeric(18,3)")
-                        .HasColumnName("actual");
-
-                    b.Property<string>("Comment")
-                        .HasColumnType("text")
-                        .HasColumnName("comment");
-
-                    b.HasKey("OrderId");
-
-                    b.ToTable("DripSemiproductOrderExecutions", (string)null);
                 });
 
             modelBuilder.Entity("Verle.Models.Employee", b =>
@@ -330,10 +254,10 @@ namespace Verle.Migrations
 
                     b.HasIndex("PositionId");
 
-                    b.ToTable("employees", (string)null);
+                    b.ToTable("employee", (string)null);
                 });
 
-            modelBuilder.Entity("Verle.Models.Fuso", b =>
+            modelBuilder.Entity("Verle.Models.Equipment", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -350,10 +274,10 @@ namespace Verle.Migrations
                         .HasColumnType("date")
                         .HasColumnName("commissioningDate");
 
-                    b.Property<string>("FusoNumber")
+                    b.Property<string>("EquipmentName")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("fusoNumber");
+                        .HasColumnName("name");
 
                     b.Property<int>("UnitId")
                         .HasColumnType("integer")
@@ -363,7 +287,7 @@ namespace Verle.Migrations
 
                     b.HasIndex("UnitId");
 
-                    b.ToTable("FUSO", (string)null);
+                    b.ToTable("equipment", (string)null);
                 });
 
             modelBuilder.Entity("Verle.Models.LegalEntity", b =>
@@ -542,6 +466,58 @@ namespace Verle.Migrations
                     b.ToTable("officeLocation", (string)null);
                 });
 
+            modelBuilder.Entity("Verle.Models.OrderStatus", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("orderStatus", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "Редактируется"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "Создан"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Name = "На исполнении"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Name = "На утверждении мастера"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Name = "На утверждении операционистом"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Name = "Выполнен"
+                        });
+                });
+
             modelBuilder.Entity("Verle.Models.Position", b =>
                 {
                     b.Property<int>("Id")
@@ -567,7 +543,7 @@ namespace Verle.Migrations
                         .IsUnique()
                         .HasDatabaseName("UX_Position_DivisionId_Name");
 
-                    b.ToTable("Position", (string)null);
+                    b.ToTable("position", (string)null);
                 });
 
             modelBuilder.Entity("Verle.Models.ProductType", b =>
@@ -588,6 +564,90 @@ namespace Verle.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("productType", (string)null);
+                });
+
+            modelBuilder.Entity("Verle.Models.ProductionOrder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("text")
+                        .HasColumnName("comment");
+
+                    b.Property<int>("EquipmentId")
+                        .HasColumnType("integer")
+                        .HasColumnName("equipmentId");
+
+                    b.Property<string>("Id1C")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("id1C");
+
+                    b.Property<int>("NomenclaturaId")
+                        .HasColumnType("integer")
+                        .HasColumnName("nomenclaturaId");
+
+                    b.Property<DateOnly>("OrderDate")
+                        .HasColumnType("date")
+                        .HasColumnName("orderDate");
+
+                    b.Property<decimal>("Plan")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)")
+                        .HasColumnName("plan");
+
+                    b.Property<int>("ShiftId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("shift");
+
+                    b.Property<int>("StatusId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(2)
+                        .HasColumnName("statusId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EquipmentId");
+
+                    b.HasIndex("Id1C")
+                        .IsUnique()
+                        .HasDatabaseName("UX_DripSemiproductOrders_id1C");
+
+                    b.HasIndex("NomenclaturaId");
+
+                    b.HasIndex("ShiftId");
+
+                    b.HasIndex("StatusId");
+
+                    b.ToTable("productionOrder", (string)null);
+                });
+
+            modelBuilder.Entity("Verle.Models.ProductionOrderExecution", b =>
+                {
+                    b.Property<int>("OrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("orderId");
+
+                    b.Property<decimal>("Actual")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)")
+                        .HasColumnName("actual");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("text")
+                        .HasColumnName("comment");
+
+                    b.HasKey("OrderId");
+
+                    b.ToTable("productionOrderExecution", (string)null);
                 });
 
             modelBuilder.Entity("Verle.Models.ProductionSpecification", b =>
@@ -625,11 +685,67 @@ namespace Verle.Migrations
                     b.HasIndex("NomenclaturaIdOutput")
                         .HasDatabaseName("IX_productionSpecifications_nomenclaturaIdOutput");
 
-                    b.ToTable("productionSpecifications", null, t =>
+                    b.ToTable("productionSpecification", null, t =>
                         {
                             t.HasCheckConstraint("CK_productionSpecifications_quantityInput_positive", "\"quantityInput\" > 0");
 
                             t.HasCheckConstraint("CK_productionSpecifications_quantityOutput_positive", "\"quantityOutput\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Verle.Models.ProductionUnit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("UX_productionUnits_name");
+
+                    b.ToTable("productionUnit", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "Обжарка"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "Фасовка зерна (ручка)"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Name = "Фасовка зерна (СИА)"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Name = "ПФ капсулы"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Name = "ПФ Дрипы"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Name = "Сборка ГП"
                         });
                 });
 
@@ -879,44 +995,6 @@ namespace Verle.Migrations
                     b.Navigation("Department");
                 });
 
-            modelBuilder.Entity("Verle.Models.DripSemiproductOrder", b =>
-                {
-                    b.HasOne("Verle.Models.Fuso", "Fuso")
-                        .WithMany()
-                        .HasForeignKey("FusoId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Verle.Models.Nomenclatura", "Nomenclatura")
-                        .WithMany()
-                        .HasForeignKey("NomenclaturaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Verle.Models.Shift", "Shift")
-                        .WithMany()
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Fuso");
-
-                    b.Navigation("Nomenclatura");
-
-                    b.Navigation("Shift");
-                });
-
-            modelBuilder.Entity("Verle.Models.DripSemiproductOrderExecution", b =>
-                {
-                    b.HasOne("Verle.Models.DripSemiproductOrder", "Order")
-                        .WithOne("Execution")
-                        .HasForeignKey("Verle.Models.DripSemiproductOrderExecution", "OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Order");
-                });
-
             modelBuilder.Entity("Verle.Models.Employee", b =>
                 {
                     b.HasOne("Verle.Models.Position", "Position")
@@ -928,7 +1006,7 @@ namespace Verle.Migrations
                     b.Navigation("Position");
                 });
 
-            modelBuilder.Entity("Verle.Models.Fuso", b =>
+            modelBuilder.Entity("Verle.Models.Equipment", b =>
                 {
                     b.HasOne("Verle.Models.Unit", "Unit")
                         .WithMany()
@@ -1026,6 +1104,52 @@ namespace Verle.Migrations
                     b.Navigation("Division");
                 });
 
+            modelBuilder.Entity("Verle.Models.ProductionOrder", b =>
+                {
+                    b.HasOne("Verle.Models.Equipment", "Equipment")
+                        .WithMany()
+                        .HasForeignKey("EquipmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Verle.Models.Nomenclatura", "Nomenclatura")
+                        .WithMany()
+                        .HasForeignKey("NomenclaturaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Verle.Models.Shift", "Shift")
+                        .WithMany()
+                        .HasForeignKey("ShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Verle.Models.OrderStatus", "Status")
+                        .WithMany()
+                        .HasForeignKey("StatusId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Equipment");
+
+                    b.Navigation("Nomenclatura");
+
+                    b.Navigation("Shift");
+
+                    b.Navigation("Status");
+                });
+
+            modelBuilder.Entity("Verle.Models.ProductionOrderExecution", b =>
+                {
+                    b.HasOne("Verle.Models.ProductionOrder", "Order")
+                        .WithOne("Execution")
+                        .HasForeignKey("Verle.Models.ProductionOrderExecution", "OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("Verle.Models.ProductionSpecification", b =>
                 {
                     b.HasOne("Verle.Models.Nomenclatura", "NomenclaturaInput")
@@ -1088,11 +1212,6 @@ namespace Verle.Migrations
                     b.Navigation("SalesChannelLink");
                 });
 
-            modelBuilder.Entity("Verle.Models.DripSemiproductOrder", b =>
-                {
-                    b.Navigation("Execution");
-                });
-
             modelBuilder.Entity("Verle.Models.Nomenclatura", b =>
                 {
                     b.Navigation("BrandLink");
@@ -1112,6 +1231,11 @@ namespace Verle.Migrations
             modelBuilder.Entity("Verle.Models.ProductType", b =>
                 {
                     b.Navigation("NomenclaturaLinks");
+                });
+
+            modelBuilder.Entity("Verle.Models.ProductionOrder", b =>
+                {
+                    b.Navigation("Execution");
                 });
 
             modelBuilder.Entity("Verle.Models.SalesChannel", b =>
