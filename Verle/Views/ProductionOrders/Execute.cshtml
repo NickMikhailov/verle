@@ -2,9 +2,26 @@
 
 @{
     ViewData["Title"] = "Выполнение заказа";
+
+    var executionStarted =
+        ViewBag.ExecutionStarted is bool started && started;
 }
 
-<h1>Выполнение заказа</h1>
+<h1>@ViewData["Title"]</h1>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="alert">
+        @successMessage
+    </div>
+}
+
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">
+        @errorMessage
+    </div>
+}
 
 <div class="card mb-4">
     <div class="card-header">
@@ -21,14 +38,14 @@
                 @Model.OrderDate.ToString("dd.MM.yyyy")
             </dd>
 
+            <dt class="col-sm-4">Смена</dt>
+            <dd class="col-sm-8">@Model.ShiftName</dd>
+
             <dt class="col-sm-4">Код номенклатуры в 1С</dt>
             <dd class="col-sm-8">@Model.NomenclaturaId1C</dd>
 
             <dt class="col-sm-4">Номенклатура</dt>
             <dd class="col-sm-8">@Model.NomenclaturaName</dd>
-
-            <dt class="col-sm-4">Смена</dt>
-            <dd class="col-sm-8">@Model.ShiftName</dd>
 
             <dt class="col-sm-4">Машина FUSO</dt>
             <dd class="col-sm-8">@Model.FusoNumber</dd>
@@ -40,53 +57,126 @@
 
             <dt class="col-sm-4">Комментарий к заказу</dt>
             <dd class="col-sm-8">
-                <div style="white-space: pre-wrap;">@(Model.OrderComment ?? "—")</div>
+                <div style="white-space: pre-wrap;">@(string.IsNullOrWhiteSpace(Model.OrderComment) ? "—" : Model.OrderComment)</div>
+            </dd>
+
+            <dt class="col-sm-4">Статус</dt>
+            <dd class="col-sm-8">
+                @if (executionStarted)
+                {
+                    <span class="badge bg-primary">
+                        На исполнении
+                    </span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary">
+                        Создан
+                    </span>
+                }
             </dd>
         </dl>
     </div>
 </div>
 
-<form asp-action="Execute"
+@if (!executionStarted)
+{
+    <div class="alert alert-info" role="alert">
+        Заказ ещё не запущен в производство.
+        Нажмите «Старт», чтобы начать исполнение.
+        После запуска редактирование самого заказа будет недоступно.
+    </div>
+
+    @* Отдельная форма запуска заказа.
+       Она не вложена в форму сохранения факта. *@
+    <form asp-controller="ProductionOrders"
+          asp-action="Start"
+          asp-route-id="@Model.Id"
+          asp-antiforgery="true"
+          method="post"
+          class="mb-4">
+
+        <button type="submit" class="btn btn-success">
+            Старт
+        </button>
+    </form>
+}
+
+<form asp-controller="ProductionOrders"
+      asp-action="Execute"
       asp-route-id="@Model.Id"
+      asp-antiforgery="true"
       method="post">
 
     <input asp-for="Id" type="hidden" />
 
     <div asp-validation-summary="ModelOnly"
-         class="text-danger"></div>
+         class="text-danger mb-3"></div>
 
-    <div class="mb-3">
-        <label asp-for="Actual" class="form-label"></label>
+    <div class="card mb-4">
+        <div class="card-header">
+            Данные исполнения
+        </div>
 
-        <input asp-for="Actual"
-               class="form-control"
-               type="number"
-               min="0"
-               step="0.001"
-               required />
+        <div class="card-body">
+            @* До запуска все поля внутри fieldset заблокированы.
+            При executionStarted == true атрибут disabled
+            не выводится Razor. *@
+            <fieldset disabled="@(!executionStarted)">
+                <legend class="visually-hidden">
+                    Факт и комментарий к исполнению
+                </legend>
 
-        <span asp-validation-for="Actual"
-              class="text-danger"></span>
+                <div class="mb-3">
+                    <label asp-for="Actual"
+                           class="form-label"></label>
+
+                    <input asp-for="Actual"
+                           class="form-control"
+                           type="number"
+                           min="0"
+                           step="0.001"
+                           required
+                           aria-describedby="ActualHelp" />
+
+                    <span asp-validation-for="Actual"
+                          class="text-danger"></span>
+
+                    <div id="ActualHelp" class="form-text">
+                        Фактическое количество.
+                        Допускается до трёх знаков после запятой.
+                    </div>
+                </div>
+
+                <div class="mb-0">
+                    <label asp-for="Comment"
+                           class="form-label"></label>
+
+                    <textarea asp-for="Comment"
+                              class="form-control"
+                              rows="4"></textarea>
+
+                    <span asp-validation-for="Comment"
+                          class="text-danger"></span>
+                </div>
+            </fieldset>
+        </div>
     </div>
 
-    <div class="mb-3">
-        <label asp-for="Comment" class="form-label"></label>
+    <div class="d-flex flex-wrap gap-2">
+        @if (executionStarted)
+        {
+            <button type="submit" class="btn btn-primary">
+                Сохранить факт
+            </button>
+        }
 
-        <textarea asp-for="Comment"
-                  class="form-control"
-                  rows="4"></textarea>
-
-        <span asp-validation-for="Comment"
-              class="text-danger"></span>
+        <a asp-controller="ProductionOrders"
+           asp-action="Index"
+           class="btn btn-outline-secondary">
+            Вернуться к списку
+        </a>
     </div>
-
-    <button type="submit" class="btn btn-primary">
-        Сохранить факт
-    </button>
-
-    <a asp-action="Index" class="btn btn-secondary">
-        Вернуться к списку
-    </a>
 </form>
 
 @section Scripts {

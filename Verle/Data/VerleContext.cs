@@ -89,7 +89,7 @@ namespace Verle.Data
 
                 entity.Property(x => x.Id1C)
                     .HasColumnName("id1C")
-                    .HasMaxLength(100)
+                    .HasColumnType("text")
                     .IsRequired();
 
                 entity.HasIndex(x => x.Id1C)
@@ -558,7 +558,7 @@ namespace Verle.Data
                 entity.Property(x => x.Id1C)
                     .HasColumnName("id1C")
                     .HasColumnType("text")
-                    .IsRequired();
+                    .IsRequired(false);
 
                 entity.HasIndex(x => x.Id1C)
                     .IsUnique()
@@ -567,20 +567,20 @@ namespace Verle.Data
                 entity.Property(x => x.OrderDate)
                     .HasColumnName("orderDate")
                     .HasColumnType("date")
-                    .IsRequired();
+                    .IsRequired(false);
 
                 entity.Property(x => x.NomenclaturaId)
                     .HasColumnName("nomenclaturaId")
-                    .IsRequired();
+                    .IsRequired(false);
 
                 entity.Property(x => x.ShiftId)
                     .HasColumnName("shift")
                     .HasDefaultValue(1)
-                    .IsRequired();
+                    .IsRequired(false);
 
                 entity.Property(x => x.EquipmentId)
                     .HasColumnName("fusoId")
-                    .IsRequired();
+                    .IsRequired(false);
 
                 entity.Property(x => x.Comment)
                     .HasColumnName("comment")
@@ -590,7 +590,7 @@ namespace Verle.Data
                 entity.Property(x => x.Plan)
                     .HasColumnName("plan")
                     .HasPrecision(18, 3)
-                    .IsRequired();
+                    .IsRequired(false);
 
                 entity.HasOne(x => x.Nomenclatura)
                     .WithMany()
@@ -609,7 +609,7 @@ namespace Verle.Data
 
                 entity.Property(x => x.StatusId)
                     .HasColumnName("statusId")
-                    .HasDefaultValue(2)
+                    .HasDefaultValue(1)
                     .IsRequired();
 
                 entity.HasOne(x => x.Status)
