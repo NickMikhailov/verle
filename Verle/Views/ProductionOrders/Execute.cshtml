@@ -2,10 +2,103 @@
 
 @{
     ViewData["Title"] = "Выполнение заказа";
+
+    var orderStatusId = ViewBag.OrderStatusId is int statusId
+        ? statusId
+        : 0;
+
+    var isCreated = orderStatusId == 2;
+    var isInExecution = orderStatusId == 3;
+    var isMasterApproval = orderStatusId == 4;
+    var isFactCorrection = orderStatusId == 7;
+
+    var canEditActual =
+        isInExecution || isFactCorrection;
+    var isDowntime =
+        Model.CurrentExecutionStatusId == ExecutionStatusIds.Downtime;
+
+    var hasUnknownLegacyState =
+        isInExecution && Model.LastExecutionEventId == null;
+
+    var canStart =
+        isCreated && Model.LastExecutionEventId == null;
+
+    var canControlExecution =
+        isInExecution &&
+        (
+            hasUnknownLegacyState ||
+            Model.CurrentExecutionStatusId == ExecutionStatusIds.InProgress ||
+            Model.CurrentExecutionStatusId == ExecutionStatusIds.Downtime
+        );
+
+    var executionStateName = Model.CurrentExecutionStatusId switch
+    {
+        ExecutionStatusIds.InProgress => "В работе",
+        ExecutionStatusIds.Downtime => "Простой",
+        ExecutionStatusIds.Finished => "Выполнение завершено",
+        _ => isCreated
+            ? "Не запущено"
+            : "Нет данных в журнале"
+    };
+    var statusBadgeClass = orderStatusId switch
+    {
+        1 => "bg-secondary",
+        2 => "bg-secondary",
+        3 => "bg-primary",
+        4 => "bg-warning text-dark",
+        5 => "bg-info text-dark",
+        6 => "bg-success",
+        7 => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+
+    var orderStatusName = ViewBag.OrderStatusName as string ?? "—";
+}
+<style>
+    .execution-controls .btn:disabled {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        color: #fff;
+        box-shadow: none;
+    }
+</style>
+<h1>@ViewData["Title"]</h1>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="alert">
+        @successMessage
+    </div>
 }
 
-<h1>Выполнение заказа</h1>
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">
+        @errorMessage
+    </div>
+}
+@if (isFactCorrection)
+{
+    <div class="alert alert-warning" role="alert">
+        Заказ возвращён на корректировку фактических данных.
+        Работа оборудования уже завершена и не возобновляется.
+        Исправьте данные, нажмите «Сохранить»,
+        затем «Передать мастеру».
+    </div>
+    <form asp-controller="ProductionOrders"
+          asp-action="SubmitCorrections"
+          asp-route-id="@Model.Id"
+          asp-antiforgery="true"
+          method="post"
+          class="m-0">
 
+        <button type="submit"
+                class="btn btn-primary"
+                onclick="return confirm('Передать сохранённые исправления на утверждение мастера?');">
+            Передать мастеру
+        </button>
+    </form>
+}
 <div class="card mb-4">
     <div class="card-header">
         Данные заказа
@@ -21,14 +114,14 @@
                 @Model.OrderDate.ToString("dd.MM.yyyy")
             </dd>
 
+            <dt class="col-sm-4">Смена</dt>
+            <dd class="col-sm-8">@Model.ShiftName</dd>
+
             <dt class="col-sm-4">Код номенклатуры в 1С</dt>
             <dd class="col-sm-8">@Model.NomenclaturaId1C</dd>
 
             <dt class="col-sm-4">Номенклатура</dt>
             <dd class="col-sm-8">@Model.NomenclaturaName</dd>
-
-            <dt class="col-sm-4">Смена</dt>
-            <dd class="col-sm-8">@Model.ShiftName</dd>
 
             <dt class="col-sm-4">Машина FUSO</dt>
             <dd class="col-sm-8">@Model.FusoNumber</dd>
@@ -40,55 +133,253 @@
 
             <dt class="col-sm-4">Комментарий к заказу</dt>
             <dd class="col-sm-8">
-                <div style="white-space: pre-wrap;">@(Model.OrderComment ?? "—")</div>
+                <div style="white-space: pre-wrap;">@(string.IsNullOrWhiteSpace(Model.OrderComment) ? "—" : Model.OrderComment)</div>
+            </dd>
+
+            <dt class="col-sm-4">Статус</dt>
+            <dd class="col-sm-8">
+                <span class="badge @statusBadgeClass">
+                    @orderStatusName
+                </span>
             </dd>
         </dl>
     </div>
 </div>
 
-<form asp-action="Execute"
+@if (isCreated)
+{
+    <div class="alert alert-info" role="alert">
+        Заказ ещё не запущен в производство.
+        Нажмите «Старт», чтобы начать исполнение.
+        После запуска редактирование самого заказа будет недоступно.
+    </div>
+}
+
+@* Управление исполнением между блоками данных.
+   Формы запуска и завершения не вложены в форму сохранения факта. *@
+<div class="mb-3">
+    <strong>Состояние выполнения:</strong>
+    @executionStateName
+</div>
+
+@if (hasUnknownLegacyState)
+{
+    <div class="alert alert-warning" role="alert">
+        Заказ был запущен до внедрения журнала.
+        Время первоначального старта неизвестно.
+        Новые события будут фиксироваться с текущего момента.
+    </div>
+}
+
+<div class="execution-controls d-flex flex-wrap align-items-center gap-2 mb-4">
+
+    <form asp-controller="ProductionOrders"
+          asp-action="Start"
+          asp-route-id="@Model.Id"
+          asp-antiforgery="true"
+          method="post"
+          class="m-0">
+
+        <input type="hidden"
+               name="expectedLastEventId"
+               value="@Model.LastExecutionEventId" />
+
+        <button type="submit"
+                class="btn btn-success"
+                disabled="@(!canStart)">
+            Старт
+        </button>
+    </form>
+
+    <form asp-controller="ProductionOrders"
+          asp-action="Finish"
+          asp-route-id="@Model.Id"
+          asp-antiforgery="true"
+          method="post"
+          class="m-0">
+
+        <input type="hidden"
+               name="expectedLastEventId"
+               value="@Model.LastExecutionEventId" />
+
+        <button type="submit"
+                class="btn btn-danger"
+                disabled="@(!canControlExecution)"
+                onclick="return confirm('Завершить выполнение и передать заказ на утверждение мастера?');">
+            Финиш
+        </button>
+    </form>
+
+    <form asp-controller="ProductionOrders"
+          asp-action="@(isDowntime ? "Resume" : "Downtime")"
+          asp-route-id="@Model.Id"
+          asp-antiforgery="true"
+          method="post"
+          class="m-0">
+
+        <input type="hidden"
+               name="expectedLastEventId"
+               value="@Model.LastExecutionEventId" />
+
+        <button type="submit"
+                class="btn @(isDowntime ? "btn-success" : "btn-warning")"
+                disabled="@(!canControlExecution)">
+            @(isDowntime ? "Снять с простоя" : "Простой")
+        </button>
+    </form>
+</div>
+<form id="executionForm"
+      asp-controller="ProductionOrders"
+      asp-action="Execute"
       asp-route-id="@Model.Id"
+      asp-antiforgery="true"
       method="post">
 
     <input asp-for="Id" type="hidden" />
 
     <div asp-validation-summary="ModelOnly"
-         class="text-danger"></div>
+         class="text-danger mb-3"></div>
 
-    <div class="mb-3">
-        <label asp-for="Actual" class="form-label"></label>
+    <div class="card mb-4">
+        <div class="card-header">
+            Данные исполнения
+        </div>
 
-        <input asp-for="Actual"
-               class="form-control"
-               type="number"
-               min="0"
-               step="0.001"
-               required />
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-sm-4 fw-bold">
+                    Начало работы (UTC)
+                </div>
 
-        <span asp-validation-for="Actual"
-              class="text-danger"></span>
+                <div class="col-sm-8">
+                    @(Model.StartedAt?.ToString("dd.MM.yyyy HH:mm:ss") ?? "—")
+                </div>
+            </div>
+
+            @* Редактирование факта доступно во время исполнения
+            и при корректировке фактических данных. *@
+            <fieldset disabled="@(!canEditActual)">
+                <legend class="visually-hidden">
+                    Факт и комментарий к исполнению
+                </legend>
+
+                <div class="mb-3">
+                    <label asp-for="Actual" class="form-label">
+                        Фактическое количество
+                    </label>
+
+                    <input asp-for="Actual"
+                           class="form-control" />
+
+                    <span asp-validation-for="Actual"
+                          class="text-danger"></span>
+                </div>
+
+                <div class="mb-0">
+                    <label asp-for="Comment"
+                           class="form-label"></label>
+
+                    <textarea asp-for="Comment"
+                              class="form-control"
+                              rows="4"></textarea>
+
+                    <span asp-validation-for="Comment"
+                          class="text-danger"></span>
+                </div>
+            </fieldset>
+        </div>
     </div>
-
-    <div class="mb-3">
-        <label asp-for="Comment" class="form-label"></label>
-
-        <textarea asp-for="Comment"
-                  class="form-control"
-                  rows="4"></textarea>
-
-        <span asp-validation-for="Comment"
-              class="text-danger"></span>
-    </div>
-
-    <button type="submit" class="btn btn-primary">
-        Сохранить факт
-    </button>
-
-    <a asp-action="Index" class="btn btn-secondary">
-        Вернуться к списку
-    </a>
 </form>
 
+@* Сохранение факта, утверждение и возврат к списку. *@
+<div class="d-flex flex-wrap align-items-center gap-2">
+    @if (canEditActual)
+    {
+        <button type="submit"
+                form="executionForm"
+                class="btn btn-primary">
+            Сохранить
+        </button>
+    }
+
+    @if (isMasterApproval)
+    {
+        <form asp-controller="ProductionOrders"
+              asp-action="ApproveByMaster"
+              asp-route-id="@Model.Id"
+              asp-antiforgery="true"
+              method="post"
+              class="m-0">
+
+            <button type="submit"
+                    class="btn btn-success"
+                    onclick="return confirm('Утвердить исполнение заказа и передать его операционисту?');">
+                Утвердить
+            </button>
+        </form>
+
+        <form asp-controller="ProductionOrders"
+              asp-action="RejectByMaster"
+              asp-route-id="@Model.Id"
+              asp-antiforgery="true"
+              method="post"
+              class="m-0">
+
+            <button type="submit"
+                    class="btn btn-danger"
+                    onclick="return confirm('Вернуть заказ на корректировку фактических данных?');">
+                Отклонить
+            </button>
+        </form>
+    }
+
+    <a asp-controller="ProductionOrders"
+       asp-action="Index"
+       class="btn btn-outline-secondary">
+        Вернуться к списку
+    </a>
+</div>
+<div class="card mt-4">
+    <div class="card-header">
+        Журнал выполнения
+    </div>
+
+    <div class="card-body">
+        @if (Model.Events.Count == 0)
+        {
+            <p class="text-muted mb-0">
+                События выполнения ещё не зафиксированы.
+            </p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Дата и время (UTC)</th>
+                            <th scope="col">Состояние</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var executionEvent in Model.Events)
+                        {
+                            <tr>
+                                <td>
+                                    @executionEvent.OccurredAt.ToString("dd.MM.yyyy HH:mm:ss")
+                                </td>
+                                <td>
+                                    @executionEvent.StatusName
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }

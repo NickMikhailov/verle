@@ -4,21 +4,40 @@
     ViewData["Title"] = "Редактирование заказа ПФ Дрипы";
 }
 
-<h1>Редактирование заказа ПФ Дрипы</h1>
+<h1>@ViewData["Title"]</h1>
 
-<form asp-action="Edit"
+<form asp-controller="ProductionOrders"
+      asp-action="Edit"
       asp-route-id="@Model.Id"
+      asp-antiforgery="true"
       method="post">
 
     <partial name="_Form" model="Model" />
 
-    <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary">
+    <div class="mt-4 d-flex flex-wrap gap-2">
+        <button type="submit"
+                name="submitAction"
+                value="save"
+                formnovalidate
+                class="btn btn-secondary">
             Сохранить
         </button>
 
-        <a asp-action="Index" class="btn btn-outline-secondary">
+        <button type="submit"
+                name="submitAction"
+                value="create"
+                class="btn btn-primary">
+            @(ViewData["IsDraft"] is true ? "Создать" : "Пересоздать")
+        </button>
+
+        <a asp-controller="ProductionOrders"
+           asp-action="Index"
+           class="btn btn-outline-secondary">
             Отмена
         </a>
     </div>
 </form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

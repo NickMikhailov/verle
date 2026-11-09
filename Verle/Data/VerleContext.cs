@@ -71,6 +71,11 @@ namespace Verle.Data
             Set<OrderStatus>();
         public DbSet<ProductionUnit> ProductionUnits =>
             Set<ProductionUnit>();
+        public DbSet<ExecutionStatus> ExecutionStatuses =>
+            Set<ExecutionStatus>();
+        public DbSet<ProductionOrderExecutionEvent> ProductionOrderExecutionEvents =>
+            Set<ProductionOrderExecutionEvent>(); 
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -89,6 +94,7 @@ namespace Verle.Data
 
                 entity.Property(x => x.Id1C)
                     .HasColumnName("id1C")
+                    .HasColumnType("character varying(100)")
                     .HasMaxLength(100)
                     .IsRequired();
 
@@ -558,7 +564,7 @@ namespace Verle.Data
                 entity.Property(x => x.Id1C)
                     .HasColumnName("id1C")
                     .HasColumnType("text")
-                    .IsRequired();
+                    .IsRequired(false);
 
                 entity.HasIndex(x => x.Id1C)
                     .IsUnique()
@@ -567,20 +573,20 @@ namespace Verle.Data
                 entity.Property(x => x.OrderDate)
                     .HasColumnName("orderDate")
                     .HasColumnType("date")
-                    .IsRequired();
+                    .IsRequired(false);
 
                 entity.Property(x => x.NomenclaturaId)
                     .HasColumnName("nomenclaturaId")
-                    .IsRequired();
+                    .IsRequired(false);
 
                 entity.Property(x => x.ShiftId)
                     .HasColumnName("shift")
                     .HasDefaultValue(1)
-                    .IsRequired();
+                    .IsRequired(false);
 
                 entity.Property(x => x.EquipmentId)
-                    .HasColumnName("fusoId")
-                    .IsRequired();
+                    .HasColumnName("equipmentId")
+                    .IsRequired(false);
 
                 entity.Property(x => x.Comment)
                     .HasColumnName("comment")
@@ -590,7 +596,7 @@ namespace Verle.Data
                 entity.Property(x => x.Plan)
                     .HasColumnName("plan")
                     .HasPrecision(18, 3)
-                    .IsRequired();
+                    .IsRequired(false);
 
                 entity.HasOne(x => x.Nomenclatura)
                     .WithMany()
@@ -609,7 +615,7 @@ namespace Verle.Data
 
                 entity.Property(x => x.StatusId)
                     .HasColumnName("statusId")
-                    .HasDefaultValue(2)
+                    .HasDefaultValue(1)
                     .IsRequired();
 
                 entity.HasOne(x => x.Status)
@@ -642,6 +648,89 @@ namespace Verle.Data
                     .HasForeignKey<ProductionOrderExecution>(x => x.OrderId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
+            // Состояния физического выполнения.
+            modelBuilder.Entity<ExecutionStatus>(entity =>
+            {
+                entity.ToTable("executionStatus");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedNever();
+
+                entity.Property(x => x.Code)
+                    .HasColumnName("code")
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(x => x.Name)
+                    .HasColumnName("name")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.HasIndex(x => x.Code)
+                    .IsUnique();
+
+                entity.HasData(
+                    new ExecutionStatus
+                    {
+                        Id = ExecutionStatusIds.InProgress,
+                        Code = "InProgress",
+                        Name = "В работе"
+                    },
+                    new ExecutionStatus
+                    {
+                        Id = ExecutionStatusIds.Downtime,
+                        Code = "Downtime",
+                        Name = "Простой"
+                    },
+                    new ExecutionStatus
+                    {
+                        Id = ExecutionStatusIds.Finished,
+                        Code = "Finished",
+                        Name = "Выполнение завершено"
+                    });
+            });
+            // Журнал физического выполнения.
+            modelBuilder.Entity<ProductionOrderExecutionEvent>(entity =>
+            {
+                entity.ToTable("productionOrderExecutionEvent");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.OrderId)
+                    .HasColumnName("orderId")
+                    .IsRequired();
+
+                entity.Property(x => x.OccurredAt)
+                    .HasColumnName("occurredAt")
+                    .HasColumnType("timestamp with time zone")
+                    .IsRequired();
+
+                entity.Property(x => x.ExecutionStatusId)
+                    .HasColumnName("executionStatusId")
+                    .IsRequired();
+
+                entity.HasOne(x => x.Order)
+                    .WithMany()
+                    .HasForeignKey(x => x.OrderId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.ExecutionStatus)
+                    .WithMany()
+                    .HasForeignKey(x => x.ExecutionStatusId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => new { x.OrderId, x.Id })
+                    .HasDatabaseName(
+                        "IX_executionEvent_orderId_id");
+            });
+            
             // Производственные спецификации.
             modelBuilder.Entity<ProductionSpecification>(entity =>
             {
@@ -746,6 +835,11 @@ namespace Verle.Data
                     {
                         Id = 6,
                         Name = "Выполнен"
+                    },
+                    new OrderStatus
+                    {
+                        Id = 7,
+                        Name = "На корректировке факта"
                     }
                 );
             });

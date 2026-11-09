@@ -13,6 +13,16 @@ namespace Verle.Controllers
 {
     public class ProductionOrdersController : Controller
     {
+        private const int DraftStatusId = 1;
+        private const int CreatedStatusId = 2;
+        private const int InExecutionStatusId = 3;
+        private const int MasterApprovalStatusId = 4;
+        private const int OperatorApprovalStatusId = 5;
+        private const int FactCorrectionStatusId = 7;
+
+        // ID класса SKU «Полуфабрикат».
+        private const int SemiproductSkuClassId = 2;
+
         private readonly VerleContext _context;
 
         public ProductionOrdersController(VerleContext context)
@@ -20,16 +30,12 @@ namespace Verle.Controllers
             _context = context;
         }
 
-        // Список заказов.
+        // GET: ProductionOrders
+        [HttpGet]
         public async Task<IActionResult> Index()
         {
-            var orders = await _context.ProductionOrders
+            var orders = await QueryWithReferences()
                 .AsNoTracking()
-                .Include(x => x.Nomenclatura)
-                .Include(x => x.Shift)
-                .Include(x => x.Equipment)
-                .Include(x => x.Execution)
-                .Include(x => x.Status)
                 .OrderByDescending(x => x.OrderDate)
                 .ThenByDescending(x => x.Id)
                 .ToListAsync();
@@ -37,73 +43,52 @@ namespace Verle.Controllers
             return View(orders);
         }
 
-        // Карточка заказа.
+        // GET: ProductionOrders/Details/5
+        [HttpGet]
         public async Task<IActionResult> Details(int id)
         {
             var order = await GetOrderWithReferencesAsync(id);
 
             if (order == null)
+            {
                 return NotFound();
+            }
 
             return View(order);
         }
 
-        // Форма создания.
-        public async Task<IActionResult> Create()
+        // GET ничего не создаёт.
+        [HttpGet]
+        public IActionResult Create()
         {
-            await LoadReferencesAsync();
-
-            return View(new ProductionOrderFormViewModel());
+            return RedirectToAction(nameof(Index));
         }
 
-        // Сохранение нового заказа.
+        // POST: ProductionOrders/Create
+        // Создаёт пустой черновик и открывает редактирование.
         [HttpPost]
+        [ActionName("Create")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(
-            ProductionOrderFormViewModel model)
+        public async Task<IActionResult> CreateDraft()
         {
-            Normalize(model);
-            await ValidateFormAsync(model);
-
-            if (!ModelState.IsValid)
-            {
-                await LoadReferencesAsync();
-                return View(model);
-            }
-
             var order = new ProductionOrder
             {
-                Id1C = model.Id1C,
-                OrderDate = model.OrderDate!.Value,
-                NomenclaturaId = model.NomenclaturaId!.Value,
-                ShiftId = model.ShiftId!.Value,
-                EquipmentId = model.FusoId!.Value,
-                Comment = model.Comment,
-                Plan = model.Plan!.Value
+                StatusId = DraftStatusId
             };
 
             _context.ProductionOrders.Add(order);
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateException ex) when (IsDuplicateId1C(ex))
-            {
-                ModelState.AddModelError(
-                    nameof(model.Id1C),
-                    "Заказ с таким ID в 1С уже существует.");
+            await _context.SaveChangesAsync();
 
-                await LoadReferencesAsync();
-                return View(model);
-            }
+            TempData["SuccessMessage"] = "Черновик создан.";
 
-            TempData["SuccessMessage"] = "Заказ создан.";
-
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(
+                nameof(Edit),
+                new { id = order.Id });
         }
 
-        // Форма редактирования.
+        // GET: ProductionOrders/Edit/5
+        [HttpGet]
         public async Task<IActionResult> Edit(int id)
         {
             var order = await _context.ProductionOrders
@@ -111,7 +96,19 @@ namespace Verle.Controllers
                 .SingleOrDefaultAsync(x => x.Id == id);
 
             if (order == null)
+            {
                 return NotFound();
+            }
+
+            if (order.StatusId != DraftStatusId &&
+                order.StatusId != CreatedStatusId)
+            {
+                TempData["ErrorMessage"] =
+                    "После запуска исходные данные заказа " +
+                    "недоступны для редактирования.";
+
+                return RedirectToAction(nameof(Index));
+            }
 
             var model = new ProductionOrderFormViewModel
             {
@@ -125,86 +122,157 @@ namespace Verle.Controllers
                 Plan = order.Plan
             };
 
-            await LoadReferencesAsync();
+            await PrepareEditFormAsync(
+                isDraft: order.StatusId == DraftStatusId);
 
             return View(model);
         }
 
-        // Сохранение изменений.
+        // POST: ProductionOrders/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(
             int id,
-            ProductionOrderFormViewModel model)
-        {
-            if (id != model.Id)
-                return BadRequest();
+            ProductionOrderFormViewModel model,
+            string submitAction)
+                {
+                    if (id != model.Id)
+                    {
+                        return BadRequest();
+                    }
 
-            var order = await _context.ProductionOrders
-                .SingleOrDefaultAsync(x => x.Id == id);
+                await using var transaction =
+                await _context.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.ReadCommitted);
+
+            var order = await LockOrderAsync(id);
 
             if (order == null)
-                return NotFound();
+                    {
+                        return NotFound();
+                    }
 
-            Normalize(model);
-            await ValidateFormAsync(model);
-
-            if (!ModelState.IsValid)
+            if (order.StatusId != DraftStatusId &&
+                order.StatusId != CreatedStatusId)
             {
-                await LoadReferencesAsync();
-                return View(model);
+                TempData["ErrorMessage"] =
+                    "После запуска исходные данные заказа " +
+                    "недоступны для редактирования.";
+
+                return RedirectToAction(nameof(Index));
             }
 
-            order.Id1C = model.Id1C;
-            order.OrderDate = model.OrderDate!.Value;
-            order.NomenclaturaId = model.NomenclaturaId!.Value;
-            order.ShiftId = model.ShiftId!.Value;
-            order.EquipmentId = model.FusoId!.Value;
-            order.Comment = model.Comment;
-            order.Plan = model.Plan!.Value;
+            var originalStatusId = order.StatusId;
+
+                    var isCreateAction = string.Equals(
+                        submitAction,
+                        "create",
+                        StringComparison.OrdinalIgnoreCase);
+
+                    var isSaveAction = string.Equals(
+                        submitAction,
+                        "save",
+                        StringComparison.OrdinalIgnoreCase);
+
+                    if (!isCreateAction && !isSaveAction)
+                    {
+                        ModelState.AddModelError(
+                            string.Empty,
+                            "Не удалось определить действие формы.");
+                    }
+
+                    Normalize(model);
+
+                    await ValidateFormAsync(
+                        model,
+                        requireComplete: isCreateAction);
+
+                    if (!ModelState.IsValid)
+                    {
+                        await PrepareEditFormAsync(
+                            isDraft: originalStatusId == DraftStatusId);
+
+                        return View(model);
+                    }
+
+                    // Перенос данных из модели формы в заказ.
+                    order.Id1C = string.IsNullOrWhiteSpace(model.Id1C)
+                        ? null
+                        : model.Id1C.Trim();
+
+                    order.OrderDate = model.OrderDate;
+                    order.NomenclaturaId = model.NomenclaturaId;
+                    order.ShiftId = model.ShiftId;
+                    order.EquipmentId = model.FusoId;
+                    order.Comment = model.Comment;
+                    order.Plan = model.Plan;
+
+                    // Изменение статуса зависит только от нажатой кнопки.
+                    if (isCreateAction)
+                    {
+                        order.StatusId = CreatedStatusId;
+                    }
+                    else
+                    {
+                        order.StatusId = originalStatusId == CreatedStatusId
+                            ? DraftStatusId
+                            : originalStatusId;
+                    }
 
             try
             {
                 await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
             }
             catch (DbUpdateConcurrencyException)
-            {
-                if (!await _context.ProductionOrders
-                    .AnyAsync(x => x.Id == id))
-                {
-                    return NotFound();
+                    {
+                        var exists = await _context.ProductionOrders
+                            .AnyAsync(x => x.Id == id);
+
+                        if (!exists)
+                        {
+                            return NotFound();
+                        }
+
+                        throw;
+                    }
+
+                    if (isCreateAction)
+                    {
+                        TempData["SuccessMessage"] =
+                            "Заказ проверен и сохранён со статусом «Создан».";
+                    }
+                    else if (originalStatusId == CreatedStatusId)
+                    {
+                        TempData["SuccessMessage"] =
+                            "Изменения сохранены. Заказ переведён в статус «Редактируется».";
+                    }
+                    else
+                    {
+                        TempData["SuccessMessage"] =
+                            "Черновик сохранён.";
+                    }
+
+                    return RedirectToAction(nameof(Index));
                 }
 
-                throw;
-            }
-            catch (DbUpdateException ex) when (IsDuplicateId1C(ex))
-            {
-                ModelState.AddModelError(
-                    nameof(model.Id1C),
-                    "Заказ с таким ID в 1С уже существует.");
-
-                await LoadReferencesAsync();
-                return View(model);
-            }
-
-            TempData["SuccessMessage"] = "Изменения сохранены.";
-
-            return RedirectToAction(nameof(Index));
-        }
-
-        // Подтверждение удаления.
+        // GET: ProductionOrders/Delete/5
+        [HttpGet]
         public async Task<IActionResult> Delete(int id)
         {
             var order = await GetOrderWithReferencesAsync(id);
 
             if (order == null)
+            {
                 return NotFound();
+            }
 
             return View(order);
         }
 
-        // Удаление выполняется только POST-запросом.
-        [HttpPost, ActionName("Delete")]
+        // POST: ProductionOrders/Delete/5
+        [HttpPost]
+        [ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
@@ -212,7 +280,9 @@ namespace Verle.Controllers
                 .SingleOrDefaultAsync(x => x.Id == id);
 
             if (order == null)
+            {
                 return NotFound();
+            }
 
             _context.ProductionOrders.Remove(order);
 
@@ -222,26 +292,33 @@ namespace Verle.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                return NotFound();
-            }
-            catch (DbUpdateException ex)
-                when (ex.InnerException is PostgresException
+                var exists = await _context.ProductionOrders
+                    .AnyAsync(x => x.Id == id);
+
+                if (!exists)
                 {
-                    SqlState: PostgresErrorCodes.ForeignKeyViolation
-                })
+                    return NotFound();
+                }
+
+                throw;
+            }
+            catch (DbUpdateException exception)
+                when (IsForeignKeyViolation(exception))
             {
-                // Пригодится после добавления связанных таблиц.
+                _context.Entry(order).State = EntityState.Unchanged;
+
                 ModelState.AddModelError(
                     string.Empty,
-                    "Нельзя удалить заказ: на него ссылаются другие записи.");
-
-                _context.Entry(order).State = EntityState.Unchanged;
+                    "Нельзя удалить заказ: " +
+                    "на него ссылаются другие записи.");
 
                 var orderWithReferences =
                     await GetOrderWithReferencesAsync(id);
 
                 if (orderWithReferences == null)
+                {
                     return NotFound();
+                }
 
                 return View("Delete", orderWithReferences);
             }
@@ -251,154 +328,8 @@ namespace Verle.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        private Task<ProductionOrder?> GetOrderWithReferencesAsync(
-            int id)
-        {
-            return _context.ProductionOrders
-                .AsNoTracking()
-                .Include(x => x.Nomenclatura)
-                .Include(x => x.Shift)
-                .Include(x => x.Equipment)
-                .SingleOrDefaultAsync(x => x.Id == id);
-        }
-
-        // Загрузка справочников для выпадающих списков.
-        private async Task LoadReferencesAsync()
-        {
-            var nomenclaturas = await _context.Set<Nomenclatura>()
-                .AsNoTracking()
-                .Where(x =>
-                    x.SkuClassLink != null &&
-                    x.SkuClassLink.SkuClass.Id == 2)
-                .OrderBy(x => x.Name)
-                .ThenBy(x => x.Id1C)
-                .Select(x => new
-                {
-                    id = x.Id,
-                    id1C = x.Id1C,
-                    name = x.Name
-                })
-                .ToListAsync();
-
-            ViewBag.Nomenclaturas = nomenclaturas
-                .Select(x => new SelectListItem
-                {
-                    Value = x.id.ToString(),
-                    Text = $"{x.id1C} — {x.name}"
-                })
-                .ToList();
-
-            // Данные для отдельных информационных полей в форме.
-            ViewData["NomenclaturaInfo"] = nomenclaturas;
-
-            var shifts = await _context.Set<Shift>()
-                .AsNoTracking()
-                .OrderBy(x => x.Id)
-                .ToListAsync();
-
-            ViewBag.Shifts = shifts
-                .Select(x => new SelectListItem
-                {
-                    Value = x.Id.ToString(),
-                    Text = x.Name
-                })
-                .ToList();
-
-            var fusos = await _context.Set<Equipment>()
-                .AsNoTracking()
-                .OrderBy(x => x.EquipmentName)
-                .ToListAsync();
-
-            ViewBag.Fusos = fusos
-                .Select(x => new SelectListItem
-                {
-                    Value = x.Id.ToString(),
-                    Text = x.EquipmentName
-                })
-                .ToList();
-        }
-
-        private static void Normalize(
-            ProductionOrderFormViewModel model)
-        {
-            model.Id1C = (model.Id1C ?? string.Empty).Trim();
-
-            model.Comment = string.IsNullOrWhiteSpace(model.Comment)
-                ? null
-                : model.Comment.Trim();
-        }
-
-        // Серверные проверки не зависят от JavaScript в браузере.
-        private async Task ValidateFormAsync(
-            ProductionOrderFormViewModel model)
-        {
-            if (string.IsNullOrWhiteSpace(model.Id1C))
-            {
-                ModelState.AddModelError(
-                    nameof(model.Id1C),
-                    "Укажите ID заказа в 1С.");
-            }
-            else if (await _context.ProductionOrders
-                .AnyAsync(x =>
-                    x.Id1C == model.Id1C &&
-                    x.Id != model.Id))
-            {
-                ModelState.AddModelError(
-                    nameof(model.Id1C),
-                    "Заказ с таким ID в 1С уже существует.");
-            }
-
-            if (model.NomenclaturaId.HasValue)
-            {
-                var isAllowedNomenclatura = await _context.Set<Nomenclatura>()
-                    .AnyAsync(x =>
-                        x.Id == model.NomenclaturaId.Value &&
-                        x.SkuClassLink != null &&
-                        x.SkuClassLink.SkuClass.Name == "Полуфабрикат");
-
-                if (!isAllowedNomenclatura)
-                {
-                    ModelState.AddModelError(
-                        nameof(model.NomenclaturaId),
-                        "Выберите номенклатуру с классом SKU «Полуфабрикат».");
-                }
-            }
-
-            if (model.ShiftId.HasValue &&
-                !await _context.Set<Shift>()
-                    .AnyAsync(x => x.Id == model.ShiftId.Value))
-            {
-                ModelState.AddModelError(
-                    nameof(model.ShiftId),
-                    "Выбранная смена не найдена.");
-            }
-
-            if (model.FusoId.HasValue &&
-                !await _context.Set<Equipment>()
-                    .AnyAsync(x => x.Id == model.FusoId.Value))
-            {
-                ModelState.AddModelError(
-                    nameof(model.FusoId),
-                    "Выбранная машина FUSO не найдена.");
-            }
-
-            if (model.Plan.HasValue &&
-                decimal.Round(model.Plan.Value, 3) != model.Plan.Value)
-            {
-                ModelState.AddModelError(
-                    nameof(model.Plan),
-                    "Укажите не более трёх знаков после запятой.");
-            }
-        }
-
-        private static bool IsDuplicateId1C(DbUpdateException exception)
-        {
-            return exception.InnerException is PostgresException postgres &&
-                   postgres.SqlState == PostgresErrorCodes.UniqueViolation &&
-                   postgres.ConstraintName ==
-                       "UX_ProductionOrders_id1C";
-        }
-        // GET: ProductOrders/Execute/5
+        // GET: ProductionOrders/Execute/5
+        // Открывает форму, но не изменяет статус.
         [HttpGet]
         public async Task<IActionResult> Execute(int id)
         {
@@ -409,18 +340,56 @@ namespace Verle.Controllers
                 return NotFound();
             }
 
+            // Просмотр разрешён для статусов:
+            // 2 — Создан;
+            // 3 — На исполнении;
+            // 4 — На утверждении мастера;
+            // 5 — На утверждении операционистом.
+            if (order.StatusId != CreatedStatusId &&
+                order.StatusId != InExecutionStatusId &&
+                order.StatusId != MasterApprovalStatusId &&
+                order.StatusId != OperatorApprovalStatusId &&
+                order.StatusId != FactCorrectionStatusId)
+            {
+                TempData["ErrorMessage"] =
+                    "Форма выполнения недоступна для этого статуса заказа.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (!HasCompleteOrderData(order))
+            {
+                return RedirectForIncompleteOrder(order);
+            }
+
+            // Передаём текущий статус в Execute.cshtml.
+            ViewBag.OrderStatusId = order.StatusId;
+            ViewBag.OrderStatusName = order.Status?.Name;
+
+            // Редактировать исполнение можно только в статусе 3.
+            ViewBag.ExecutionStarted =
+                order.StatusId == InExecutionStatusId;
+
+            ViewBag.MasterApproval =
+                order.StatusId == MasterApprovalStatusId;
+
+            ViewBag.OperatorApproval =
+                order.StatusId == OperatorApprovalStatusId;
+
             var model = new ProductionOrderExecutionViewModel
             {
+                Id = order.Id,
                 Actual = order.Execution?.Actual,
                 Comment = order.Execution?.Comment
             };
 
             FillExecutionOrderDetails(model, order);
-
+            await FillExecutionHistoryAsync(model, order.Id);
             return View(model);
         }
 
         // POST: ProductionOrders/Execute/5
+        // Сохраняет факт и комментарий только после старта.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Execute(
@@ -431,27 +400,85 @@ namespace Verle.Controllers
             {
                 return BadRequest();
             }
+            await using var transaction =
+                await _context.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.ReadCommitted);
 
+            var lockedOrder = await LockOrderAsync(id);
+
+            if (lockedOrder == null)
+            {
+                return NotFound();
+            }
             var order = await GetOrderForExecutionAsync(id);
 
             if (order == null)
             {
                 return NotFound();
             }
+            var canEditActual =
+                order.StatusId == InExecutionStatusId ||
+                order.StatusId == FactCorrectionStatusId;   
 
-            if (model.Actual.HasValue &&
-                decimal.Round(model.Actual.Value, 3) != model.Actual.Value)
+            if (!canEditActual)
             {
-                ModelState.AddModelError(
+                TempData["ErrorMessage"] =
+                    order.StatusId == CreatedStatusId
+                        ? "Сначала нажмите кнопку «Старт»."
+                        : "Изменение фактических данных доступно только " +
+                          "во время исполнения или корректировки факта.";
+
+                return RedirectToAction(
+                    nameof(Execute),
+                    new { id = order.Id });
+            }
+
+            if (!HasCompleteOrderData(order))
+            {
+                return RedirectForIncompleteOrder(order);
+            }
+
+            model.Comment = string.IsNullOrWhiteSpace(model.Comment)
+                ? null
+                : model.Comment.Trim();
+
+            if (!model.Actual.HasValue)
+            {
+                AddModelErrorIfMissing(
                     nameof(model.Actual),
-                    "Укажите факт с точностью не более трёх знаков после запятой.");
+                    "Укажите фактическое количество.");
+            }
+            else
+            {
+                if (model.Actual.Value < 0)
+                {
+                    AddModelErrorIfMissing(
+                        nameof(model.Actual),
+                        "Фактическое количество не может быть отрицательным.");
+                }
+
+                if (decimal.Round(model.Actual.Value, 3)
+                    != model.Actual.Value)
+                {
+                    AddModelErrorIfMissing(
+                        nameof(model.Actual),
+                        "Укажите факт с точностью не более " +
+                        "трёх знаков после запятой.");
+                }
             }
 
             if (!ModelState.IsValid)
             {
-                // Детали заказа всегда повторно получаем из базы.
-                FillExecutionOrderDetails(model, order);
+                ViewBag.OrderStatusId = order.StatusId;
 
+                ViewBag.OrderStatusName = order.Status?.Name;
+
+                ViewBag.ExecutionStarted = order.StatusId == InExecutionStatusId;
+
+                ViewBag.MasterApproval = order.StatusId == MasterApprovalStatusId;
+
+                FillExecutionOrderDetails(model, order);
+                await FillExecutionHistoryAsync(model, order.Id);
                 return View(model);
             }
 
@@ -473,36 +500,732 @@ namespace Verle.Controllers
             }
 
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            TempData["SuccessMessage"] =
+                "Данные исполнения сохранены.";
+
+            return RedirectToAction(
+                nameof(Execute),
+                new { id = order.Id });
+        }
+
+        // POST: ProductionOrders/Start/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> Start(
+            int id,
+            long? expectedLastEventId)
+        {
+            return ChangeExecutionStateAsync(
+                id,
+                ExecutionStatusIds.InProgress,
+                expectedLastEventId,
+                isStart: true);
+        }
+
+        // POST: ProductionOrders/Downtime/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> Downtime(
+            int id,
+            long? expectedLastEventId)
+        {
+            return ChangeExecutionStateAsync(
+                id,
+                ExecutionStatusIds.Downtime,
+                expectedLastEventId);
+        }
+
+        // POST: ProductionOrders/Resume/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> Resume(
+            int id,
+            long? expectedLastEventId)
+        {
+            return ChangeExecutionStateAsync(
+                id,
+                ExecutionStatusIds.InProgress,
+                expectedLastEventId);
+        }
+
+        // POST: ProductionOrders/Finish/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> Finish(
+            int id,
+            long? expectedLastEventId)
+        {
+            return ChangeExecutionStateAsync(
+                id,
+                ExecutionStatusIds.Finished,
+                expectedLastEventId);
+        }
+        private async Task<IActionResult> ChangeExecutionStateAsync(
+    int id,
+    int nextExecutionStatusId,
+    long? expectedLastEventId,
+    bool isStart = false)
+        {
+            await using var transaction =
+                await _context.Database.BeginTransactionAsync(
+                    System.Data.IsolationLevel.ReadCommitted);
+
+            var order = await LockOrderAsync(id);
+
+            if (order == null)
+            {
+                return NotFound();
+            }
+
+            // События читаем после получения блокировки заказа.
+            var lastEvent = await _context.ProductionOrderExecutionEvents
+                .AsNoTracking()
+                .Where(x => x.OrderId == id)
+                .OrderByDescending(x => x.Id)
+                .FirstOrDefaultAsync();
+
+            // Защищает и от двойного нажатия, и от действия
+            // из вкладки, которая показывает устаревшее состояние.
+            if (lastEvent?.Id != expectedLastEventId)
+            {
+                return RedirectToExecutionWithError(
+                    id,
+                    "Состояние выполнения уже изменилось. " +
+                    "Страница обновлена — проверьте состояние и повторите действие.");
+            }
+
+            string successMessage;
+
+            if (isStart)
+            {
+                if (order.StatusId != CreatedStatusId)
+                {
+                    return RedirectToExecutionWithError(
+                        id,
+                        "Запустить можно только заказ со статусом «Создан».");
+                }
+
+                if (lastEvent != null)
+                {
+                    return RedirectToExecutionWithError(
+                        id,
+                        "У заказа уже есть история выполнения. " +
+                        "Повторный запуск недоступен.");
+                }
+
+                // Загружаем справочники для существующей проверки полноты.
+                var orderWithReferences =
+                    await GetOrderForExecutionAsync(id);
+
+                if (orderWithReferences == null)
+                {
+                    return NotFound();
+                }
+
+                if (!HasCompleteOrderData(orderWithReferences))
+                {
+                    return RedirectForIncompleteOrder(orderWithReferences);
+                }
+
+                order.StatusId = InExecutionStatusId;
+
+                successMessage = "Выполнение заказа начато.";
+            }
+            else
+            {
+                if (order.StatusId != InExecutionStatusId)
+                {
+                    return RedirectToExecutionWithError(
+                        id,
+                        "Действие доступно только для заказа " +
+                        "со статусом «На исполнении».");
+                }
+
+                var currentState = lastEvent?.ExecutionStatusId;
+
+                // Для заказов, запущенных до внедрения журнала,
+                // состояние может быть неизвестно.
+                var hasUnknownLegacyState = lastEvent == null;
+
+                switch (nextExecutionStatusId)
+                {
+                    case ExecutionStatusIds.Downtime:
+                        if (!hasUnknownLegacyState &&
+                            currentState != ExecutionStatusIds.InProgress)
+                        {
+                            return RedirectToExecutionWithError(
+                                id,
+                                "Перевести в простой можно только работающий заказ.");
+                        }
+
+                        successMessage = "Начало простоя зафиксировано.";
+                        break;
+
+                    case ExecutionStatusIds.InProgress:
+                        if (currentState != ExecutionStatusIds.Downtime)
+                        {
+                            return RedirectToExecutionWithError(
+                                id,
+                                "Снять с простоя можно только заказ, " +
+                                "находящийся в простое.");
+                        }
+
+                        successMessage =
+                            "Простой завершён. Выполнение заказа продолжено.";
+                        break;
+
+                    case ExecutionStatusIds.Finished:
+                        if (!hasUnknownLegacyState &&
+                            currentState != ExecutionStatusIds.InProgress &&
+                            currentState != ExecutionStatusIds.Downtime)
+                        {
+                            return RedirectToExecutionWithError(
+                                id,
+                                "Выполнение заказа уже завершено " +
+                                "или текущее состояние не допускает завершение.");
+                        }
+
+                        order.StatusId = MasterApprovalStatusId;
+
+                        successMessage =
+                            "Выполнение завершено. " +
+                            "Заказ передан на утверждение мастера.";
+                        break;
+
+                    default:
+                        return BadRequest();
+                }
+            }
+
+            _context.ProductionOrderExecutionEvents.Add(
+                new ProductionOrderExecutionEvent
+                {
+                    OrderId = order.Id,
+                    OccurredAt = DateTime.UtcNow,
+                    ExecutionStatusId = nextExecutionStatusId
+                });
+
+            // Событие и изменение статуса сохраняются одной транзакцией.
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            TempData["SuccessMessage"] = successMessage;
+
+            return RedirectToAction(
+                nameof(Execute),
+                new { id });
+        }
+        // POST: ProductionOrders/ApproveByMaster/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> ApproveByMaster(int id)
+        {
+            return ChangeWorkflowStatusAsync(
+                id: id,
+                expectedStatusId: MasterApprovalStatusId,
+                nextStatusId: OperatorApprovalStatusId,
+                successMessage:
+                    "Заказ утверждён мастером и передан " +
+                    "на утверждение операционистом.",
+                openExecution: false);
+        }
+
+        // POST: ProductionOrders/RejectByMaster/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> RejectByMaster(int id)
+        {
+            return ChangeWorkflowStatusAsync(
+                id: id,
+                expectedStatusId: MasterApprovalStatusId,
+                nextStatusId: FactCorrectionStatusId,
+                successMessage:
+                    "Заказ возвращён на корректировку факта. " +
+                    "Физическое выполнение остаётся завершённым.",
+                openExecution: true);
+        }
+        // POST: ProductionOrders/SubmitCorrections/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> SubmitCorrections(int id)
+        {
+            return ChangeWorkflowStatusAsync(
+                id: id,
+                expectedStatusId: FactCorrectionStatusId,
+                nextStatusId: MasterApprovalStatusId,
+                successMessage:
+                    "Исправленные данные переданы на утверждение мастера.",
+                openExecution: true);
+        }
+        // Вызывать только внутри открытой транзакции.
+        //
+        // Блокировка строки заказа сериализует действия над одним заказом:
+        // второй запрос ждёт окончания первого и затем проверяет новое состояние.
+        private async Task<ProductionOrder?> LockOrderAsync(int id)
+        {
+            var orders = await _context.ProductionOrders
+                .FromSqlInterpolated($@"
+            SELECT *
+            FROM ""productionOrder""
+            WHERE ""id"" = {id}
+            FOR UPDATE
+        ")
+                .ToListAsync();
+
+            return orders.SingleOrDefault();
+        }
+
+        private IActionResult RedirectToExecutionWithError(
+            int id,
+            string message)
+        {
+            TempData["ErrorMessage"] = message;
+
+            return RedirectToAction(
+                nameof(Execute),
+                new { id });
+        }
+
+        // Заполняет только данные отображения.
+        // Факт и введённый комментарий не изменяет.
+        private async Task FillExecutionHistoryAsync(
+            ProductionOrderExecutionViewModel model,
+            int orderId)
+        {
+            var events = await _context.ProductionOrderExecutionEvents
+                .AsNoTracking()
+                .Where(x => x.OrderId == orderId)
+                .OrderBy(x => x.Id)
+                .Select(x => new ProductionOrderExecutionEventViewModel
+                {
+                    Id = x.Id,
+                    OccurredAt = x.OccurredAt,
+                    ExecutionStatusId = x.ExecutionStatusId,
+                    StatusName = x.ExecutionStatus.Name
+                })
+                .ToListAsync();
+
+            model.Events = events;
+
+            var lastEvent = events.LastOrDefault();
+
+            model.CurrentExecutionStatusId =
+                lastEvent?.ExecutionStatusId;
+
+            model.LastExecutionEventId =
+                lastEvent?.Id;
+
+            var firstEvent = events.FirstOrDefault();
+
+            // Для новых заказов первое событие — Старт.
+            // У старых заказов журнал может начинаться с простоя/финиша.
+            // Не выдаём время возобновления за первоначальный старт.
+            model.StartedAt =
+                firstEvent?.ExecutionStatusId == ExecutionStatusIds.InProgress
+                    ? firstEvent.OccurredAt
+                    : null;
+        }
+
+
+        // Меняет только этап обработки заказа.
+        // Журнал физического выполнения здесь не изменяется.
+        private async Task<IActionResult> ChangeWorkflowStatusAsync(
+            int id,
+            int expectedStatusId,
+            int nextStatusId,
+            string successMessage,
+            bool openExecution)
+        {
+            // Одна атомарная команда:
+            // проверка текущего статуса и его изменение.
+            var affectedRows =
+                await _context.Database.ExecuteSqlInterpolatedAsync($@"
+            UPDATE ""productionOrder""
+            SET ""statusId"" = {nextStatusId}
+            WHERE ""id"" = {id}
+              AND ""statusId"" = {expectedStatusId}
+        ");
+
+            if (affectedRows == 0)
+            {
+                var exists = await _context.ProductionOrders
+                    .AsNoTracking()
+                    .AnyAsync(x => x.Id == id);
+
+                if (!exists)
+                {
+                    return NotFound();
+                }
+
+                TempData["ErrorMessage"] =
+                    "Действие недоступно для текущего статуса заказа. " +
+                    "Возможно, статус уже был изменён.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            TempData["SuccessMessage"] = successMessage;
+
+            if (openExecution)
+            {
+                return RedirectToAction(
+                    nameof(Execute),
+                    new { id });
+            }
 
             return RedirectToAction(nameof(Index));
         }
-
-        private Task<ProductionOrder?> GetOrderForExecutionAsync(int id)
+        // Общий запрос со связанными данными.
+        private IQueryable<ProductionOrder> QueryWithReferences()
         {
             return _context.ProductionOrders
                 .Include(x => x.Nomenclatura)
                 .Include(x => x.Shift)
                 .Include(x => x.Equipment)
                 .Include(x => x.Execution)
+                .Include(x => x.Status);
+        }
+
+        private Task<ProductionOrder?> GetOrderWithReferencesAsync(
+            int id)
+        {
+            return QueryWithReferences()
+                .AsNoTracking()
                 .SingleOrDefaultAsync(x => x.Id == id);
         }
 
+        // Для сохранения исполнения нужен отслеживаемый объект.
+        private Task<ProductionOrder?> GetOrderForExecutionAsync(
+            int id)
+        {
+            return QueryWithReferences()
+                .Include(x => x.Status)
+                .SingleOrDefaultAsync(x => x.Id == id);
+        }
+
+        private async Task PrepareEditFormAsync(bool isDraft)
+        {
+            ViewData["IsDraft"] = isDraft;
+
+            await LoadReferencesAsync();
+        }
+
+        // Единый фильтр номенклатуры для списка и проверки.
+        private IQueryable<Nomenclatura> AllowedNomenclaturas()
+        {
+            return _context.Set<Nomenclatura>()
+                .Where(x =>
+                    x.SkuClassLink != null &&
+                    x.SkuClassLink.SkuClass.Id
+                        == SemiproductSkuClassId);
+        }
+
+        // Справочники для формы редактирования.
+        private async Task LoadReferencesAsync()
+        {
+            var nomenclaturas = await AllowedNomenclaturas()
+                .AsNoTracking()
+                .OrderBy(x => x.Name)
+                .ThenBy(x => x.Id1C)
+                .Select(x => new
+                {
+                    id = x.Id,
+                    id1C = x.Id1C,
+                    name = x.Name
+                })
+                .ToListAsync();
+
+            ViewBag.Nomenclaturas = nomenclaturas
+                .Select(x => new SelectListItem
+                {
+                    Value = x.id.ToString(),
+                    Text = $"{x.id1C} — {x.name}"
+                })
+                .ToList();
+
+            ViewData["NomenclaturaInfo"] = nomenclaturas;
+
+            var shifts = await _context.Set<Shift>()
+                .AsNoTracking()
+                .OrderBy(x => x.Id)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Name
+                })
+                .ToListAsync();
+
+            ViewBag.Shifts = shifts
+                .Select(x => new SelectListItem
+                {
+                    Value = x.Id.ToString(),
+                    Text = x.Name
+                })
+                .ToList();
+
+            var fusos = await _context.Set<Equipment>()
+                .AsNoTracking()
+                .OrderBy(x => x.EquipmentName)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.EquipmentName
+                })
+                .ToListAsync();
+
+            ViewBag.Fusos = fusos
+                .Select(x => new SelectListItem
+                {
+                    Value = x.Id.ToString(),
+                    Text = x.EquipmentName
+                })
+                .ToList();
+        }
+
+        private static void Normalize(
+            ProductionOrderFormViewModel model)
+        {
+            // Пустые строки сохраняем в базе как NULL.
+            model.Id1C = string.IsNullOrWhiteSpace(model.Id1C)
+                ? null
+                : model.Id1C.Trim();
+
+            model.Comment = string.IsNullOrWhiteSpace(model.Comment)
+                ? null
+                : model.Comment.Trim();
+        }
+
+        // Обязательность зависит от нажатой кнопки.
+        // Заполненные значения проверяются в любом случае.
+        private async Task ValidateFormAsync(
+            ProductionOrderFormViewModel model,
+            bool requireComplete)
+        {
+            if (requireComplete)
+            {
+                ValidateRequiredFields(model);
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.Id1C))
+            {
+                var duplicateExists = await _context.ProductionOrders
+                    .AnyAsync(x =>
+                        x.Id1C == model.Id1C &&
+                        x.Id != model.Id);
+
+                if (duplicateExists)
+                {
+                    AddModelErrorIfMissing(
+                        nameof(model.Id1C),
+                        "Заказ с таким ID в 1С уже существует.");
+                }
+            }
+
+            if (model.NomenclaturaId.HasValue)
+            {
+                var isAllowed = await AllowedNomenclaturas()
+                    .AnyAsync(x =>
+                        x.Id == model.NomenclaturaId.Value);
+
+                if (!isAllowed)
+                {
+                    AddModelErrorIfMissing(
+                        nameof(model.NomenclaturaId),
+                        "Выберите номенклатуру " +
+                        "с классом SKU «Полуфабрикат».");
+                }
+            }
+
+            if (model.ShiftId.HasValue)
+            {
+                var exists = await _context.Set<Shift>()
+                    .AnyAsync(x => x.Id == model.ShiftId.Value);
+
+                if (!exists)
+                {
+                    AddModelErrorIfMissing(
+                        nameof(model.ShiftId),
+                        "Выбранная смена не найдена.");
+                }
+            }
+
+            if (model.FusoId.HasValue)
+            {
+                var exists = await _context.Set<Equipment>()
+                    .AnyAsync(x => x.Id == model.FusoId.Value);
+
+                if (!exists)
+                {
+                    AddModelErrorIfMissing(
+                        nameof(model.FusoId),
+                        "Выбранная машина FUSO не найдена.");
+                }
+            }
+
+            if (model.Plan.HasValue)
+            {
+                if (model.Plan.Value < 0 ||
+                    model.Plan.Value > 999999999999999.999m)
+                {
+                    AddModelErrorIfMissing(
+                        nameof(model.Plan),
+                        "План должен быть неотрицательным " +
+                        "и помещаться в numeric(18,3).");
+                }
+
+                if (decimal.Round(model.Plan.Value, 3)
+                    != model.Plan.Value)
+                {
+                    AddModelErrorIfMissing(
+                        nameof(model.Plan),
+                        "Укажите не более трёх знаков после запятой.");
+                }
+            }
+        }
+
+        private void ValidateRequiredFields(
+            ProductionOrderFormViewModel model)
+        {
+            if (string.IsNullOrWhiteSpace(model.Id1C))
+            {
+                AddModelErrorIfMissing(
+                    nameof(model.Id1C),
+                    "Укажите ID заказа в 1С.");
+            }
+
+            if (!model.OrderDate.HasValue)
+            {
+                AddModelErrorIfMissing(
+                    nameof(model.OrderDate),
+                    "Укажите дату заказа.");
+            }
+
+            if (!model.NomenclaturaId.HasValue)
+            {
+                AddModelErrorIfMissing(
+                    nameof(model.NomenclaturaId),
+                    "Выберите номенклатуру.");
+            }
+
+            if (!model.ShiftId.HasValue)
+            {
+                AddModelErrorIfMissing(
+                    nameof(model.ShiftId),
+                    "Выберите смену.");
+            }
+
+            if (!model.FusoId.HasValue)
+            {
+                AddModelErrorIfMissing(
+                    nameof(model.FusoId),
+                    "Выберите машину FUSO.");
+            }
+
+            if (!model.Plan.HasValue)
+            {
+                AddModelErrorIfMissing(
+                    nameof(model.Plan),
+                    "Укажите плановое количество.");
+            }
+        }
+
+        private void AddModelErrorIfMissing(
+            string key,
+            string message)
+        {
+            if (ModelState.TryGetValue(key, out var entry) &&
+                entry.Errors.Count > 0)
+            {
+                return;
+            }
+
+            ModelState.AddModelError(key, message);
+        }
+
+        // Проверяет заполненность заказа и наличие связанных данных.
+        // Вызывается для заказа, загруженного через
+        // GetOrderForExecutionAsync.
+        private static bool HasCompleteOrderData(
+            ProductionOrder order)
+        {
+            return !string.IsNullOrWhiteSpace(order.Id1C)
+                && order.OrderDate.HasValue
+                && order.NomenclaturaId.HasValue
+                && order.ShiftId.HasValue
+                && order.EquipmentId.HasValue
+                && order.Plan.HasValue
+                && order.Nomenclatura != null
+                && order.Shift != null
+                && order.Equipment != null;
+        }
+
+        // Не отправляем исполняемый неполный заказ в Edit:
+        // Edit запретит редактирование и вернёт его в Execute.
+        private IActionResult RedirectForIncompleteOrder(
+            ProductionOrder order)
+        {
+            if (order.StatusId == CreatedStatusId)
+            {
+                TempData["ErrorMessage"] =
+                    "Заказ заполнен не полностью. " +
+                    "Сначала заполните обязательные поля.";
+
+                return RedirectToAction(
+                    nameof(Edit),
+                    new { id = order.Id });
+            }
+
+            TempData["ErrorMessage"] =
+                "У исполняемого заказа отсутствуют обязательные " +
+                "или связанные данные. Обратитесь к администратору.";
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Вызывается после успешного HasCompleteOrderData.
         private static void FillExecutionOrderDetails(
             ProductionOrderExecutionViewModel model,
             ProductionOrder order)
         {
             model.Id = order.Id;
-            model.Id1C = order.Id1C;
-            model.OrderDate = order.OrderDate;
+            model.Id1C = order.Id1C!;
+            model.OrderDate = order.OrderDate!.Value;
 
-            model.NomenclaturaId1C = order.Nomenclatura.Id1C;
-            model.NomenclaturaName = order.Nomenclatura.Name;
+            model.NomenclaturaId1C =
+                order.Nomenclatura!.Id1C;
 
-            model.ShiftName = order.Shift.Name;
-            model.FusoNumber = order.Equipment.EquipmentName;
+            model.NomenclaturaName =
+                order.Nomenclatura!.Name;
 
-            model.Plan = order.Plan;
+            model.ShiftName = order.Shift!.Name;
+
+            model.FusoNumber =
+                order.Equipment!.EquipmentName;
+
+            model.Plan = order.Plan!.Value;
             model.OrderComment = order.Comment;
+        }
+
+        private static bool IsDuplicateId1C(
+            DbUpdateException exception)
+        {
+            return exception.InnerException
+                is PostgresException postgres
+                && postgres.SqlState
+                    == PostgresErrorCodes.UniqueViolation
+                && postgres.ConstraintName
+                    == "UX_ProductionOrders_id1C";
+        }
+
+        private static bool IsForeignKeyViolation(
+            DbUpdateException exception)
+        {
+            return exception.InnerException
+                is PostgresException postgres
+                && postgres.SqlState
+                    == PostgresErrorCodes.ForeignKeyViolation;
         }
     }
 }
