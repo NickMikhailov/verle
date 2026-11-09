@@ -17,6 +17,8 @@ namespace Verle.Controllers
         private const int CreatedStatusId = 2;
         private const int InExecutionStatusId = 3;
         private const int MasterApprovalStatusId = 4;
+        private const int OperatorApprovalStatusId = 5;
+        private const int FactCorrectionStatusId = 7;
 
         // ID класса SKU «Полуфабрикат».
         private const int SemiproductSkuClassId = 2;
@@ -98,15 +100,14 @@ namespace Verle.Controllers
                 return NotFound();
             }
 
-            if (order.StatusId == InExecutionStatusId)
+            if (order.StatusId != DraftStatusId &&
+                order.StatusId != CreatedStatusId)
             {
                 TempData["ErrorMessage"] =
-                    "Заказ находится на исполнении " +
-                    "и недоступен для редактирования.";
+                    "После запуска исходные данные заказа " +
+                    "недоступны для редактирования.";
 
-                return RedirectToAction(
-                    nameof(Execute),
-                    new { id = order.Id });
+                return RedirectToAction(nameof(Index));
             }
 
             var model = new ProductionOrderFormViewModel
@@ -131,125 +132,129 @@ namespace Verle.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(
-    int id,
-    ProductionOrderFormViewModel model,
-    string submitAction)
-        {
-            if (id != model.Id)
-            {
-                return BadRequest();
-            }
+            int id,
+            ProductionOrderFormViewModel model,
+            string submitAction)
+                {
+                    if (id != model.Id)
+                    {
+                        return BadRequest();
+                    }
 
-            var order = await _context.ProductionOrders
-                .SingleOrDefaultAsync(x => x.Id == id);
+                await using var transaction =
+                await _context.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.ReadCommitted);
+
+            var order = await LockOrderAsync(id);
 
             if (order == null)
-            {
-                return NotFound();
-            }
+                    {
+                        return NotFound();
+                    }
 
-            if (order.StatusId == InExecutionStatusId)
+            if (order.StatusId != DraftStatusId &&
+                order.StatusId != CreatedStatusId)
             {
                 TempData["ErrorMessage"] =
-                    "Заказ находится на исполнении и недоступен для редактирования.";
+                    "После запуска исходные данные заказа " +
+                    "недоступны для редактирования.";
 
-                return RedirectToAction(
-                    nameof(Execute),
-                    new { id = order.Id });
+                return RedirectToAction(nameof(Index));
             }
 
             var originalStatusId = order.StatusId;
 
-            var isCreateAction = string.Equals(
-                submitAction,
-                "create",
-                StringComparison.OrdinalIgnoreCase);
+                    var isCreateAction = string.Equals(
+                        submitAction,
+                        "create",
+                        StringComparison.OrdinalIgnoreCase);
 
-            var isSaveAction = string.Equals(
-                submitAction,
-                "save",
-                StringComparison.OrdinalIgnoreCase);
+                    var isSaveAction = string.Equals(
+                        submitAction,
+                        "save",
+                        StringComparison.OrdinalIgnoreCase);
 
-            if (!isCreateAction && !isSaveAction)
-            {
-                ModelState.AddModelError(
-                    string.Empty,
-                    "Не удалось определить действие формы.");
-            }
+                    if (!isCreateAction && !isSaveAction)
+                    {
+                        ModelState.AddModelError(
+                            string.Empty,
+                            "Не удалось определить действие формы.");
+                    }
 
-            Normalize(model);
+                    Normalize(model);
 
-            await ValidateFormAsync(
-                model,
-                requireComplete: isCreateAction);
+                    await ValidateFormAsync(
+                        model,
+                        requireComplete: isCreateAction);
 
-            if (!ModelState.IsValid)
-            {
-                await PrepareEditFormAsync(
-                    isDraft: originalStatusId == DraftStatusId);
+                    if (!ModelState.IsValid)
+                    {
+                        await PrepareEditFormAsync(
+                            isDraft: originalStatusId == DraftStatusId);
 
-                return View(model);
-            }
+                        return View(model);
+                    }
 
-            // Перенос данных из модели формы в заказ.
-            order.Id1C = string.IsNullOrWhiteSpace(model.Id1C)
-                ? null
-                : model.Id1C.Trim();
+                    // Перенос данных из модели формы в заказ.
+                    order.Id1C = string.IsNullOrWhiteSpace(model.Id1C)
+                        ? null
+                        : model.Id1C.Trim();
 
-            order.OrderDate = model.OrderDate;
-            order.NomenclaturaId = model.NomenclaturaId;
-            order.ShiftId = model.ShiftId;
-            order.EquipmentId = model.FusoId;
-            order.Comment = model.Comment;
-            order.Plan = model.Plan;
+                    order.OrderDate = model.OrderDate;
+                    order.NomenclaturaId = model.NomenclaturaId;
+                    order.ShiftId = model.ShiftId;
+                    order.EquipmentId = model.FusoId;
+                    order.Comment = model.Comment;
+                    order.Plan = model.Plan;
 
-            // Изменение статуса зависит только от нажатой кнопки.
-            if (isCreateAction)
-            {
-                order.StatusId = CreatedStatusId;
-            }
-            else
-            {
-                order.StatusId = originalStatusId == CreatedStatusId
-                    ? DraftStatusId
-                    : originalStatusId;
-            }
+                    // Изменение статуса зависит только от нажатой кнопки.
+                    if (isCreateAction)
+                    {
+                        order.StatusId = CreatedStatusId;
+                    }
+                    else
+                    {
+                        order.StatusId = originalStatusId == CreatedStatusId
+                            ? DraftStatusId
+                            : originalStatusId;
+                    }
 
             try
             {
                 await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
             }
             catch (DbUpdateConcurrencyException)
-            {
-                var exists = await _context.ProductionOrders
-                    .AnyAsync(x => x.Id == id);
+                    {
+                        var exists = await _context.ProductionOrders
+                            .AnyAsync(x => x.Id == id);
 
-                if (!exists)
-                {
-                    return NotFound();
+                        if (!exists)
+                        {
+                            return NotFound();
+                        }
+
+                        throw;
+                    }
+
+                    if (isCreateAction)
+                    {
+                        TempData["SuccessMessage"] =
+                            "Заказ проверен и сохранён со статусом «Создан».";
+                    }
+                    else if (originalStatusId == CreatedStatusId)
+                    {
+                        TempData["SuccessMessage"] =
+                            "Изменения сохранены. Заказ переведён в статус «Редактируется».";
+                    }
+                    else
+                    {
+                        TempData["SuccessMessage"] =
+                            "Черновик сохранён.";
+                    }
+
+                    return RedirectToAction(nameof(Index));
                 }
-
-                throw;
-            }
-
-            if (isCreateAction)
-            {
-                TempData["SuccessMessage"] =
-                    "Заказ проверен и сохранён со статусом «Создан».";
-            }
-            else if (originalStatusId == CreatedStatusId)
-            {
-                TempData["SuccessMessage"] =
-                    "Изменения сохранены. Заказ переведён в статус «Редактируется».";
-            }
-            else
-            {
-                TempData["SuccessMessage"] =
-                    "Черновик сохранён.";
-            }
-
-            return RedirectToAction(nameof(Index));
-        }
 
         // GET: ProductionOrders/Delete/5
         [HttpGet]
@@ -334,18 +339,17 @@ namespace Verle.Controllers
             {
                 return NotFound();
             }
-            // Передаём текущий статус заказа в представление Execute.cshtml.
-            ViewBag.OrderStatusId = order.StatusId;
 
-            ViewBag.ExecutionStarted =
-                order.StatusId == InExecutionStatusId;
-
-            ViewBag.MasterApproval =
-                order.StatusId == MasterApprovalStatusId;
-
+            // Просмотр разрешён для статусов:
+            // 2 — Создан;
+            // 3 — На исполнении;
+            // 4 — На утверждении мастера;
+            // 5 — На утверждении операционистом.
             if (order.StatusId != CreatedStatusId &&
                 order.StatusId != InExecutionStatusId &&
-                order.StatusId != MasterApprovalStatusId)
+                order.StatusId != MasterApprovalStatusId &&
+                order.StatusId != OperatorApprovalStatusId &&
+                order.StatusId != FactCorrectionStatusId)
             {
                 TempData["ErrorMessage"] =
                     "Форма выполнения недоступна для этого статуса заказа.";
@@ -358,8 +362,19 @@ namespace Verle.Controllers
                 return RedirectForIncompleteOrder(order);
             }
 
+            // Передаём текущий статус в Execute.cshtml.
+            ViewBag.OrderStatusId = order.StatusId;
+            ViewBag.OrderStatusName = order.Status?.Name;
+
+            // Редактировать исполнение можно только в статусе 3.
             ViewBag.ExecutionStarted =
                 order.StatusId == InExecutionStatusId;
+
+            ViewBag.MasterApproval =
+                order.StatusId == MasterApprovalStatusId;
+
+            ViewBag.OperatorApproval =
+                order.StatusId == OperatorApprovalStatusId;
 
             var model = new ProductionOrderExecutionViewModel
             {
@@ -369,58 +384,8 @@ namespace Verle.Controllers
             };
 
             FillExecutionOrderDetails(model, order);
-
+            await FillExecutionHistoryAsync(model, order.Id);
             return View(model);
-        }
-
-        // POST: ProductionOrders/Start/5
-        // Переводит созданный заказ в статус «На исполнении».
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Start(int id)
-        {
-            var order = await GetOrderForExecutionAsync(id);
-
-            if (order == null)
-            {
-                return NotFound();
-            }
-
-            // Повторное нажатие «Старт» не меняет статус.
-            if (order.StatusId == InExecutionStatusId)
-            {
-                TempData["ErrorMessage"] =
-                    "Заказ уже находится на исполнении.";
-
-                return RedirectToAction(
-                    nameof(Execute),
-                    new { id = order.Id });
-            }
-
-            if (order.StatusId != CreatedStatusId)
-            {
-                TempData["ErrorMessage"] =
-                    "Запустить можно только заказ " +
-                    "со статусом «Создан».";
-
-                return RedirectToAction(nameof(Index));
-            }
-
-            if (!HasCompleteOrderData(order))
-            {
-                return RedirectForIncompleteOrder(order);
-            }
-
-            order.StatusId = InExecutionStatusId;
-
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] =
-                "Заказ переведён в статус «На исполнении».";
-
-            return RedirectToAction(
-                nameof(Execute),
-                new { id = order.Id });
         }
 
         // POST: ProductionOrders/Execute/5
@@ -435,40 +400,37 @@ namespace Verle.Controllers
             {
                 return BadRequest();
             }
+            await using var transaction =
+                await _context.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.ReadCommitted);
 
+            var lockedOrder = await LockOrderAsync(id);
+
+            if (lockedOrder == null)
+            {
+                return NotFound();
+            }
             var order = await GetOrderForExecutionAsync(id);
 
             if (order == null)
             {
                 return NotFound();
             }
-            if (order.StatusId != InExecutionStatusId)
+            var canEditActual =
+                order.StatusId == InExecutionStatusId ||
+                order.StatusId == FactCorrectionStatusId;   
+
+            if (!canEditActual)
             {
                 TempData["ErrorMessage"] =
-                    "Изменять фактические данные можно только для заказа «На исполнении».";
+                    order.StatusId == CreatedStatusId
+                        ? "Сначала нажмите кнопку «Старт»."
+                        : "Изменение фактических данных доступно только " +
+                          "во время исполнения или корректировки факта.";
 
                 return RedirectToAction(
                     nameof(Execute),
                     new { id = order.Id });
-            }
-
-            if (order.StatusId != InExecutionStatusId)
-            {
-                if (order.StatusId == CreatedStatusId)
-                {
-                    TempData["ErrorMessage"] =
-                        "Сначала нажмите кнопку «Старт».";
-
-                    return RedirectToAction(
-                        nameof(Execute),
-                        new { id = order.Id });
-                }
-
-                TempData["ErrorMessage"] =
-                    "Сохранение исполнения доступно только " +
-                    "для заказа со статусом «На исполнении».";
-
-                return RedirectToAction(nameof(Index));
             }
 
             if (!HasCompleteOrderData(order))
@@ -509,14 +471,14 @@ namespace Verle.Controllers
             {
                 ViewBag.OrderStatusId = order.StatusId;
 
-                ViewBag.ExecutionStarted =
-                    order.StatusId == InExecutionStatusId;
+                ViewBag.OrderStatusName = order.Status?.Name;
 
-                ViewBag.MasterApproval =
-                    order.StatusId == MasterApprovalStatusId;
+                ViewBag.ExecutionStarted = order.StatusId == InExecutionStatusId;
+
+                ViewBag.MasterApproval = order.StatusId == MasterApprovalStatusId;
 
                 FillExecutionOrderDetails(model, order);
-
+                await FillExecutionHistoryAsync(model, order.Id);
                 return View(model);
             }
 
@@ -538,48 +500,383 @@ namespace Verle.Controllers
             }
 
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             TempData["SuccessMessage"] =
                 "Данные исполнения сохранены.";
 
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(
+                nameof(Execute),
+                new { id = order.Id });
+        }
+
+        // POST: ProductionOrders/Start/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> Start(
+            int id,
+            long? expectedLastEventId)
+        {
+            return ChangeExecutionStateAsync(
+                id,
+                ExecutionStatusIds.InProgress,
+                expectedLastEventId,
+                isStart: true);
+        }
+
+        // POST: ProductionOrders/Downtime/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> Downtime(
+            int id,
+            long? expectedLastEventId)
+        {
+            return ChangeExecutionStateAsync(
+                id,
+                ExecutionStatusIds.Downtime,
+                expectedLastEventId);
+        }
+
+        // POST: ProductionOrders/Resume/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> Resume(
+            int id,
+            long? expectedLastEventId)
+        {
+            return ChangeExecutionStateAsync(
+                id,
+                ExecutionStatusIds.InProgress,
+                expectedLastEventId);
         }
 
         // POST: ProductionOrders/Finish/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Finish(int id)
+        public Task<IActionResult> Finish(
+            int id,
+            long? expectedLastEventId)
         {
-            var order = await _context.ProductionOrders
-                .SingleOrDefaultAsync(x => x.Id == id);
+            return ChangeExecutionStateAsync(
+                id,
+                ExecutionStatusIds.Finished,
+                expectedLastEventId);
+        }
+        private async Task<IActionResult> ChangeExecutionStateAsync(
+    int id,
+    int nextExecutionStatusId,
+    long? expectedLastEventId,
+    bool isStart = false)
+        {
+            await using var transaction =
+                await _context.Database.BeginTransactionAsync(
+                    System.Data.IsolationLevel.ReadCommitted);
+
+            var order = await LockOrderAsync(id);
 
             if (order == null)
             {
                 return NotFound();
             }
 
-            if (order.StatusId != InExecutionStatusId)
-            {
-                TempData["ErrorMessage"] =
-                    "Завершить можно только заказ со статусом «На исполнении».";
+            // События читаем после получения блокировки заказа.
+            var lastEvent = await _context.ProductionOrderExecutionEvents
+                .AsNoTracking()
+                .Where(x => x.OrderId == id)
+                .OrderByDescending(x => x.Id)
+                .FirstOrDefaultAsync();
 
-                return RedirectToAction(
-                    nameof(Execute),
-                    new { id = order.Id });
+            // Защищает и от двойного нажатия, и от действия
+            // из вкладки, которая показывает устаревшее состояние.
+            if (lastEvent?.Id != expectedLastEventId)
+            {
+                return RedirectToExecutionWithError(
+                    id,
+                    "Состояние выполнения уже изменилось. " +
+                    "Страница обновлена — проверьте состояние и повторите действие.");
             }
 
-            order.StatusId = MasterApprovalStatusId;
+            string successMessage;
 
+            if (isStart)
+            {
+                if (order.StatusId != CreatedStatusId)
+                {
+                    return RedirectToExecutionWithError(
+                        id,
+                        "Запустить можно только заказ со статусом «Создан».");
+                }
+
+                if (lastEvent != null)
+                {
+                    return RedirectToExecutionWithError(
+                        id,
+                        "У заказа уже есть история выполнения. " +
+                        "Повторный запуск недоступен.");
+                }
+
+                // Загружаем справочники для существующей проверки полноты.
+                var orderWithReferences =
+                    await GetOrderForExecutionAsync(id);
+
+                if (orderWithReferences == null)
+                {
+                    return NotFound();
+                }
+
+                if (!HasCompleteOrderData(orderWithReferences))
+                {
+                    return RedirectForIncompleteOrder(orderWithReferences);
+                }
+
+                order.StatusId = InExecutionStatusId;
+
+                successMessage = "Выполнение заказа начато.";
+            }
+            else
+            {
+                if (order.StatusId != InExecutionStatusId)
+                {
+                    return RedirectToExecutionWithError(
+                        id,
+                        "Действие доступно только для заказа " +
+                        "со статусом «На исполнении».");
+                }
+
+                var currentState = lastEvent?.ExecutionStatusId;
+
+                // Для заказов, запущенных до внедрения журнала,
+                // состояние может быть неизвестно.
+                var hasUnknownLegacyState = lastEvent == null;
+
+                switch (nextExecutionStatusId)
+                {
+                    case ExecutionStatusIds.Downtime:
+                        if (!hasUnknownLegacyState &&
+                            currentState != ExecutionStatusIds.InProgress)
+                        {
+                            return RedirectToExecutionWithError(
+                                id,
+                                "Перевести в простой можно только работающий заказ.");
+                        }
+
+                        successMessage = "Начало простоя зафиксировано.";
+                        break;
+
+                    case ExecutionStatusIds.InProgress:
+                        if (currentState != ExecutionStatusIds.Downtime)
+                        {
+                            return RedirectToExecutionWithError(
+                                id,
+                                "Снять с простоя можно только заказ, " +
+                                "находящийся в простое.");
+                        }
+
+                        successMessage =
+                            "Простой завершён. Выполнение заказа продолжено.";
+                        break;
+
+                    case ExecutionStatusIds.Finished:
+                        if (!hasUnknownLegacyState &&
+                            currentState != ExecutionStatusIds.InProgress &&
+                            currentState != ExecutionStatusIds.Downtime)
+                        {
+                            return RedirectToExecutionWithError(
+                                id,
+                                "Выполнение заказа уже завершено " +
+                                "или текущее состояние не допускает завершение.");
+                        }
+
+                        order.StatusId = MasterApprovalStatusId;
+
+                        successMessage =
+                            "Выполнение завершено. " +
+                            "Заказ передан на утверждение мастера.";
+                        break;
+
+                    default:
+                        return BadRequest();
+                }
+            }
+
+            _context.ProductionOrderExecutionEvents.Add(
+                new ProductionOrderExecutionEvent
+                {
+                    OrderId = order.Id,
+                    OccurredAt = DateTime.UtcNow,
+                    ExecutionStatusId = nextExecutionStatusId
+                });
+
+            // Событие и изменение статуса сохраняются одной транзакцией.
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
-            TempData["SuccessMessage"] =
-                "Заказ передан на утверждение мастера.";
+            TempData["SuccessMessage"] = successMessage;
 
             return RedirectToAction(
                 nameof(Execute),
-                new { id = order.Id });
+                new { id });
         }
-        
+        // POST: ProductionOrders/ApproveByMaster/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> ApproveByMaster(int id)
+        {
+            return ChangeWorkflowStatusAsync(
+                id: id,
+                expectedStatusId: MasterApprovalStatusId,
+                nextStatusId: OperatorApprovalStatusId,
+                successMessage:
+                    "Заказ утверждён мастером и передан " +
+                    "на утверждение операционистом.",
+                openExecution: false);
+        }
+
+        // POST: ProductionOrders/RejectByMaster/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> RejectByMaster(int id)
+        {
+            return ChangeWorkflowStatusAsync(
+                id: id,
+                expectedStatusId: MasterApprovalStatusId,
+                nextStatusId: FactCorrectionStatusId,
+                successMessage:
+                    "Заказ возвращён на корректировку факта. " +
+                    "Физическое выполнение остаётся завершённым.",
+                openExecution: true);
+        }
+        // POST: ProductionOrders/SubmitCorrections/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> SubmitCorrections(int id)
+        {
+            return ChangeWorkflowStatusAsync(
+                id: id,
+                expectedStatusId: FactCorrectionStatusId,
+                nextStatusId: MasterApprovalStatusId,
+                successMessage:
+                    "Исправленные данные переданы на утверждение мастера.",
+                openExecution: true);
+        }
+        // Вызывать только внутри открытой транзакции.
+        //
+        // Блокировка строки заказа сериализует действия над одним заказом:
+        // второй запрос ждёт окончания первого и затем проверяет новое состояние.
+        private async Task<ProductionOrder?> LockOrderAsync(int id)
+        {
+            var orders = await _context.ProductionOrders
+                .FromSqlInterpolated($@"
+            SELECT *
+            FROM ""productionOrder""
+            WHERE ""id"" = {id}
+            FOR UPDATE
+        ")
+                .ToListAsync();
+
+            return orders.SingleOrDefault();
+        }
+
+        private IActionResult RedirectToExecutionWithError(
+            int id,
+            string message)
+        {
+            TempData["ErrorMessage"] = message;
+
+            return RedirectToAction(
+                nameof(Execute),
+                new { id });
+        }
+
+        // Заполняет только данные отображения.
+        // Факт и введённый комментарий не изменяет.
+        private async Task FillExecutionHistoryAsync(
+            ProductionOrderExecutionViewModel model,
+            int orderId)
+        {
+            var events = await _context.ProductionOrderExecutionEvents
+                .AsNoTracking()
+                .Where(x => x.OrderId == orderId)
+                .OrderBy(x => x.Id)
+                .Select(x => new ProductionOrderExecutionEventViewModel
+                {
+                    Id = x.Id,
+                    OccurredAt = x.OccurredAt,
+                    ExecutionStatusId = x.ExecutionStatusId,
+                    StatusName = x.ExecutionStatus.Name
+                })
+                .ToListAsync();
+
+            model.Events = events;
+
+            var lastEvent = events.LastOrDefault();
+
+            model.CurrentExecutionStatusId =
+                lastEvent?.ExecutionStatusId;
+
+            model.LastExecutionEventId =
+                lastEvent?.Id;
+
+            var firstEvent = events.FirstOrDefault();
+
+            // Для новых заказов первое событие — Старт.
+            // У старых заказов журнал может начинаться с простоя/финиша.
+            // Не выдаём время возобновления за первоначальный старт.
+            model.StartedAt =
+                firstEvent?.ExecutionStatusId == ExecutionStatusIds.InProgress
+                    ? firstEvent.OccurredAt
+                    : null;
+        }
+
+
+        // Меняет только этап обработки заказа.
+        // Журнал физического выполнения здесь не изменяется.
+        private async Task<IActionResult> ChangeWorkflowStatusAsync(
+            int id,
+            int expectedStatusId,
+            int nextStatusId,
+            string successMessage,
+            bool openExecution)
+        {
+            // Одна атомарная команда:
+            // проверка текущего статуса и его изменение.
+            var affectedRows =
+                await _context.Database.ExecuteSqlInterpolatedAsync($@"
+            UPDATE ""productionOrder""
+            SET ""statusId"" = {nextStatusId}
+            WHERE ""id"" = {id}
+              AND ""statusId"" = {expectedStatusId}
+        ");
+
+            if (affectedRows == 0)
+            {
+                var exists = await _context.ProductionOrders
+                    .AsNoTracking()
+                    .AnyAsync(x => x.Id == id);
+
+                if (!exists)
+                {
+                    return NotFound();
+                }
+
+                TempData["ErrorMessage"] =
+                    "Действие недоступно для текущего статуса заказа. " +
+                    "Возможно, статус уже был изменён.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            TempData["SuccessMessage"] = successMessage;
+
+            if (openExecution)
+            {
+                return RedirectToAction(
+                    nameof(Execute),
+                    new { id });
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
         // Общий запрос со связанными данными.
         private IQueryable<ProductionOrder> QueryWithReferences()
         {
@@ -604,6 +901,7 @@ namespace Verle.Controllers
             int id)
         {
             return QueryWithReferences()
+                .Include(x => x.Status)
                 .SingleOrDefaultAsync(x => x.Id == id);
         }
 

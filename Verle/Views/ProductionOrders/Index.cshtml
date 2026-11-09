@@ -2,9 +2,13 @@
 
 @{
     ViewData["Title"] = "Заказы на производство";
+
     const int draftStatusId = 1;
     const int createdStatusId = 2;
     const int inExecutionStatusId = 3;
+    const int masterApprovalStatusId = 4;
+    const int operatorApprovalStatusId = 5;
+    const int completedStatusId = 6;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -21,10 +25,17 @@
     </form>
 </div>
 
-@if (TempData["SuccessMessage"] is string message)
+@if (TempData["SuccessMessage"] is string successMessage)
 {
     <div class="alert alert-success" role="alert">
-        @message
+        @successMessage
+    </div>
+}
+
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">
+        @errorMessage
     </div>
 }
 
@@ -33,7 +44,7 @@
         <thead>
             <tr>
                 <th scope="col">Заказ в 1С</th>
-                <th scope="col">Дата, Смена</th>
+                <th scope="col">Дата</th>
                 <th scope="col">Номенклатура</th>
                 <th scope="col" class="text-end">План</th>
                 <th scope="col" class="text-end">Факт</th>
@@ -45,6 +56,17 @@
         <tbody>
             @foreach (var item in Model)
             {
+                var statusBadgeClass = item.StatusId switch
+                {
+                    draftStatusId => "bg-secondary",
+                    createdStatusId => "bg-secondary",
+                    inExecutionStatusId => "bg-primary",
+                    masterApprovalStatusId => "bg-warning text-dark",
+                    operatorApprovalStatusId => "bg-info text-dark",
+                    completedStatusId => "bg-success",
+                    _ => "bg-secondary"
+                };
+
                 <tr>
                     <td class="text-nowrap">
                         @(string.IsNullOrWhiteSpace(item.Id1C)
@@ -82,43 +104,50 @@
                             : item.Execution.Actual.ToString("N0"))
                     </td>
 
-                    <td>
-                        @(item.Status?.Name ?? "—")
+                    <td class="text-nowrap">
+                        <span class="badge @statusBadgeClass">
+                            @(item.Status?.Name ?? "—")
+                        </span>
                     </td>
 
                     <td>
-                        @if (item.StatusId == 4)
-                        {
-                            <button type="button"
-                                    class="btn btn-sm btn-success">
-                                Утвердить
-                            </button>
-
-                            <button type="button"
-                                    class="btn btn-sm btn-danger">
-                                Отклонить
-                            </button>
-                        }
-                        else
-                        {
-                            @if (item.StatusId != 3)
+                        <div class="d-flex flex-wrap gap-2">
+                            @if (item.StatusId == draftStatusId ||
+                           item.StatusId == createdStatusId)
                             {
                                 <a asp-action="Edit"
                                    asp-route-id="@item.Id"
-                                   class="btn btn-sm btn-outline-primary">
+                                   class="btn btn-sm btn-outline-primary text-nowrap">
                                     Изменить
                                 </a>
                             }
 
-                            @if (item.StatusId == 2 || item.StatusId == 3)
+                            @if (item.StatusId == createdStatusId)
                             {
                                 <a asp-action="Execute"
                                    asp-route-id="@item.Id"
-                                   class="btn btn-sm btn-outline-success">
-                                    @(item.StatusId == 2 ? "Выполнить" : "Открыть исполнение")
+                                   class="btn btn-sm btn-outline-success text-nowrap">
+                                    Выполнить
                                 </a>
                             }
-                        }
+                            else if (item.StatusId == inExecutionStatusId)
+                            {
+                                <a asp-action="Execute"
+                                   asp-route-id="@item.Id"
+                                   class="btn btn-sm btn-outline-success text-nowrap">
+                                    Открыть исполнение
+                                </a>
+                            }
+                            else if (item.StatusId == masterApprovalStatusId ||
+                            item.StatusId == operatorApprovalStatusId)
+                            {
+                                <a asp-action="Execute"
+                                   asp-route-id="@item.Id"
+                                   class="btn btn-sm btn-outline-success text-nowrap">
+                                    Просмотреть заказ
+                                </a>
+                            }
+                        </div>
                     </td>
                 </tr>
             }

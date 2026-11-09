@@ -36,7 +36,8 @@ namespace Verle.Models
 
         public ProductionOrderExecution? Execution { get; set; }
 
-        // 1 — Редактируется, 2 — Создан.
+        // Этап обработки заказа.
+        // Не является состоянием работы оборудования.
         public int StatusId { get; set; } = 1;
 
         public OrderStatus Status { get; set; } = null!;

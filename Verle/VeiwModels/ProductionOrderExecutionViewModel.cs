@@ -1,5 +1,8 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+
 
 namespace Verle.ViewModels
 {
@@ -22,8 +25,19 @@ namespace Verle.ViewModels
 
         public decimal Plan { get; set; }
 
+        public DateTime? StartedAt { get; set; }
         public string? OrderComment { get; set; }
+        // Данные журнала только для отображения.
+        // Не принимаем их как источник состояния при сохранении факта.
+        [ValidateNever]
+        public int? CurrentExecutionStatusId { get; set; }
 
+        [ValidateNever]
+        public long? LastExecutionEventId { get; set; }
+
+        [ValidateNever]
+        public List<ProductionOrderExecutionEventViewModel> Events { get; set; }
+            = new();
         // Редактируемые данные выполнения.
         [Display(Name = "Факт")]
         [Required(ErrorMessage = "Укажите фактическое количество.")]

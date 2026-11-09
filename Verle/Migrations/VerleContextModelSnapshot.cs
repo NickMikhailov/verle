@@ -290,6 +290,52 @@ namespace Verle.Migrations
                     b.ToTable("equipment", (string)null);
                 });
 
+            modelBuilder.Entity("Verle.Models.ExecutionStatus", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("executionStatus", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Code = "InProgress",
+                            Name = "В работе"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Code = "Downtime",
+                            Name = "Простой"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Code = "Finished",
+                            Name = "Выполнение завершено"
+                        });
+                });
+
             modelBuilder.Entity("Verle.Models.LegalEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -515,6 +561,11 @@ namespace Verle.Migrations
                         {
                             Id = 6,
                             Name = "Выполнен"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Name = "На корректировке факта"
                         });
                 });
 
@@ -579,29 +630,28 @@ namespace Verle.Migrations
                         .HasColumnType("text")
                         .HasColumnName("comment");
 
-                    b.Property<int>("EquipmentId")
+                    b.Property<int?>("EquipmentId")
                         .HasColumnType("integer")
                         .HasColumnName("equipmentId");
 
                     b.Property<string>("Id1C")
-                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("id1C");
 
-                    b.Property<int>("NomenclaturaId")
+                    b.Property<int?>("NomenclaturaId")
                         .HasColumnType("integer")
                         .HasColumnName("nomenclaturaId");
 
-                    b.Property<DateOnly>("OrderDate")
+                    b.Property<DateOnly?>("OrderDate")
                         .HasColumnType("date")
                         .HasColumnName("orderDate");
 
-                    b.Property<decimal>("Plan")
+                    b.Property<decimal?>("Plan")
                         .HasPrecision(18, 3)
                         .HasColumnType("numeric(18,3)")
                         .HasColumnName("plan");
 
-                    b.Property<int>("ShiftId")
+                    b.Property<int?>("ShiftId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(1)
@@ -610,7 +660,7 @@ namespace Verle.Migrations
                     b.Property<int>("StatusId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasDefaultValue(2)
+                        .HasDefaultValue(1)
                         .HasColumnName("statusId");
 
                     b.HasKey("Id");
@@ -648,6 +698,37 @@ namespace Verle.Migrations
                     b.HasKey("OrderId");
 
                     b.ToTable("productionOrderExecution", (string)null);
+                });
+
+            modelBuilder.Entity("Verle.Models.ProductionOrderExecutionEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("ExecutionStatusId")
+                        .HasColumnType("integer")
+                        .HasColumnName("executionStatusId");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurredAt");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("orderId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExecutionStatusId");
+
+                    b.HasIndex("OrderId", "Id")
+                        .HasDatabaseName("IX_executionEvent_orderId_id");
+
+                    b.ToTable("productionOrderExecutionEvent", (string)null);
                 });
 
             modelBuilder.Entity("Verle.Models.ProductionSpecification", b =>
@@ -1109,20 +1190,17 @@ namespace Verle.Migrations
                     b.HasOne("Verle.Models.Equipment", "Equipment")
                         .WithMany()
                         .HasForeignKey("EquipmentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Verle.Models.Nomenclatura", "Nomenclatura")
                         .WithMany()
                         .HasForeignKey("NomenclaturaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Verle.Models.Shift", "Shift")
                         .WithMany()
                         .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Verle.Models.OrderStatus", "Status")
                         .WithMany()
@@ -1146,6 +1224,25 @@ namespace Verle.Migrations
                         .HasForeignKey("Verle.Models.ProductionOrderExecution", "OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("Verle.Models.ProductionOrderExecutionEvent", b =>
+                {
+                    b.HasOne("Verle.Models.ExecutionStatus", "ExecutionStatus")
+                        .WithMany()
+                        .HasForeignKey("ExecutionStatusId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Verle.Models.ProductionOrder", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ExecutionStatus");
 
                     b.Navigation("Order");
                 });
