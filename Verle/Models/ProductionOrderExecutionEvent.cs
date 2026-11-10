@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace Verle.Models
 {
@@ -13,8 +14,12 @@ namespace Verle.Models
 
         public int ExecutionStatusId { get; set; }
 
+        [MaxLength(1000)]
+        public string? Comment { get; set; }
+
         public ProductionOrder Order { get; set; } = null!;
 
         public ExecutionStatus ExecutionStatus { get; set; } = null!;
+
     }
 }

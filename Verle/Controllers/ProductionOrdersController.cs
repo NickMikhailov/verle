@@ -8,6 +8,8 @@ using Npgsql;
 using Verle.Data;
 using Verle.Models;
 using Verle.ViewModels;
+using System.Globalization;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Verle.Controllers
 {
@@ -18,7 +20,11 @@ namespace Verle.Controllers
         private const int InExecutionStatusId = 3;
         private const int MasterApprovalStatusId = 4;
         private const int OperatorApprovalStatusId = 5;
+        private const int CompletedStatusId = 6;
         private const int FactCorrectionStatusId = 7;
+
+        // ID класса SKU «Готовая продукция».
+        private const int ProductSkuClassId = 1;
 
         // ID класса SKU «Полуфабрикат».
         private const int SemiproductSkuClassId = 2;
@@ -39,7 +45,10 @@ namespace Verle.Controllers
                 .OrderByDescending(x => x.OrderDate)
                 .ThenByDescending(x => x.Id)
                 .ToListAsync();
-
+            ViewBag.StatusFilters = await _context.Set<OrderStatus>()
+                .AsNoTracking()
+                .OrderBy(x => x.Id)
+                .ToListAsync();
             return View(orders);
         }
 
@@ -117,7 +126,6 @@ namespace Verle.Controllers
                 OrderDate = order.OrderDate,
                 NomenclaturaId = order.NomenclaturaId,
                 ShiftId = order.ShiftId,
-                FusoId = order.EquipmentId,
                 Comment = order.Comment,
                 Plan = order.Plan
             };
@@ -203,7 +211,6 @@ namespace Verle.Controllers
                     order.OrderDate = model.OrderDate;
                     order.NomenclaturaId = model.NomenclaturaId;
                     order.ShiftId = model.ShiftId;
-                    order.EquipmentId = model.FusoId;
                     order.Comment = model.Comment;
                     order.Plan = model.Plan;
 
@@ -345,12 +352,14 @@ namespace Verle.Controllers
             // 3 — На исполнении;
             // 4 — На утверждении мастера;
             // 5 — На утверждении операционистом.
+            // 6 — Заказ завершен.
             if (order.StatusId != CreatedStatusId &&
                 order.StatusId != InExecutionStatusId &&
                 order.StatusId != MasterApprovalStatusId &&
                 order.StatusId != OperatorApprovalStatusId &&
-                order.StatusId != FactCorrectionStatusId)
-            {
+                order.StatusId != FactCorrectionStatusId &&
+                order.StatusId != CompletedStatusId)
+                        {
                 TempData["ErrorMessage"] =
                     "Форма выполнения недоступна для этого статуса заказа.";
 
@@ -803,7 +812,8 @@ namespace Verle.Controllers
                     Id = x.Id,
                     OccurredAt = x.OccurredAt,
                     ExecutionStatusId = x.ExecutionStatusId,
-                    StatusName = x.ExecutionStatus.Name
+                    StatusName = x.ExecutionStatus.Name,
+                    Comment = x.Comment
                 })
                 .ToListAsync();
 
@@ -877,7 +887,320 @@ namespace Verle.Controllers
 
             return RedirectToAction(nameof(Index));
         }
-        // Общий запрос со связанными данными.
+
+        // POST: ProductionOrders/SaveExecutionEventComment/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveExecutionEventComment(
+            int id,
+            long eventId,
+            string? comment)
+        {
+            if (comment != null && comment.Length > 1000)
+            {
+                return RedirectToExecutionWithError(
+                    id,
+                    "Комментарий не должен превышать 1000 символов.");
+            }
+
+            await using var transaction =
+                await _context.Database.BeginTransactionAsync(
+                    System.Data.IsolationLevel.ReadCommitted);
+
+            // Используем ту же блокировку строки заказа,
+            // что и при изменении состояния выполнения.
+            var order = await LockOrderAsync(id);
+
+            if (order == null)
+            {
+                return NotFound();
+            }
+
+            // Завершение физической работы не запрещает корректировку
+            // комментариев, если заказ возвращён на корректировку факта.
+            var canEditEventComments =
+                order.StatusId == InExecutionStatusId ||
+                order.StatusId == FactCorrectionStatusId;
+
+            if (!canEditEventComments)
+            {
+                return RedirectToExecutionWithError(
+                    id,
+                    "Комментарии журнала можно изменять только " +
+                    "в статусах «На исполнении» " +
+                    "и «На корректировке факта».");
+            }
+
+            // Запись должна принадлежать именно этому заказу.
+            var executionEvent =
+                await _context.ProductionOrderExecutionEvents
+                    .SingleOrDefaultAsync(x =>
+                        x.Id == eventId &&
+                        x.OrderId == id);
+
+            if (executionEvent == null)
+            {
+                return NotFound();
+            }
+
+            // Изменяем только комментарий существующей записи.
+            // Дата, состояние, принадлежность заказу и состав
+            // записей журнала остаются неизменными.
+            executionEvent.Comment =
+                string.IsNullOrWhiteSpace(comment)
+                    ? null
+                    : comment.Trim();
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            TempData["SuccessMessage"] =
+                "Комментарий к записи журнала сохранён.";
+
+            return RedirectToAction(
+                nameof(Execute),
+                new { id });
+        }
+        
+        // POST: ProductionOrders/RejectByOperator/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> RejectByOperator(int id)
+        {
+            return ChangeWorkflowStatusAsync(
+                id: id,
+                expectedStatusId: OperatorApprovalStatusId,
+                nextStatusId: FactCorrectionStatusId,
+                successMessage:
+                    "Заказ возвращён на корректировку факта. " +
+                    "Физическое выполнение остаётся завершённым.",
+                openExecution: true);
+        }
+        // POST: ProductionOrders/CloseOrder/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public Task<IActionResult> CloseOrder(int id)
+        {
+            return ChangeWorkflowStatusAsync(
+                id: id,
+                expectedStatusId: OperatorApprovalStatusId,
+                nextStatusId: CompletedStatusId,
+                successMessage:
+                    "Заказ закрыт и переведён в статус «Выполнен». " +
+                    "Дальнейшее редактирование недоступно.",
+                openExecution: true);
+        }
+        // POST: ProductionOrders/UpdateOrderDate
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateOrderDate(
+            [FromForm] int id,
+            [FromForm] string? orderDate,
+            [FromForm] string? expectedOrderDate,
+            [FromForm] int expectedStatusId)
+        {
+            if (!ModelState.IsValid || id <= 0)
+            {
+                return BadRequest(new
+                {
+                    message = "Некорректные параметры запроса."
+                });
+            }
+
+            // Принимаем только yyyy-MM-dd или пустое значение.
+            // Пустое значение будет дополнительно проверено по статусу.
+            static bool TryReadDate(string? text, out DateOnly? value)
+            {
+                value = null;
+
+                if (string.IsNullOrEmpty(text))
+                {
+                    return true;
+                }
+
+                if (!DateOnly.TryParseExact(
+                        text,
+                        "yyyy-MM-dd",
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.None,
+                        out var parsed))
+                {
+                    return false;
+                }
+
+                value = parsed;
+                return true;
+            }
+
+            if (!TryReadDate(orderDate, out var newDate))
+            {
+                return BadRequest(new
+                {
+                    message = "Укажите корректную дату заказа."
+                });
+            }
+
+            if (!TryReadDate(expectedOrderDate, out var expectedDate))
+            {
+                return BadRequest(new
+                {
+                    message = "Некорректная исходная дата. Обновите страницу."
+                });
+            }
+
+            await using var transaction =
+                await _context.Database.BeginTransactionAsync(
+                    System.Data.IsolationLevel.ReadCommitted);
+
+            var order = await LockOrderAsync(id);
+
+            if (order == null)
+            {
+                return NotFound(new
+                {
+                    message = "Заказ не найден. Обновите страницу."
+                });
+            }
+
+            if (order.StatusId != DraftStatusId &&
+                order.StatusId != CreatedStatusId)
+            {
+                return Conflict(new
+                {
+                    message =
+                        "Дата недоступна для редактирования: " +
+                        "статус заказа уже изменился. Обновите страницу."
+                });
+            }
+
+            // Не перезаписываем дату, изменённую в другой вкладке
+            // или другим пользователем после загрузки таблицы.
+            if (order.StatusId != expectedStatusId ||
+                order.OrderDate != expectedDate)
+            {
+                return Conflict(new
+                {
+                    message =
+                        "Дата или статус заказа уже изменены. " +
+                        "Обновите страницу и повторите действие."
+                });
+            }
+
+            if (order.StatusId == CreatedStatusId && !newDate.HasValue)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "У заказа со статусом «Создан» дата обязательна."
+                });
+            }
+
+            // Меняем только дату. Остальные поля и статус сохраняются.
+            order.OrderDate = newDate;
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            return Json(new
+            {
+                orderDate = order.OrderDate?.ToString(
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture) ?? "",
+
+                displayDate = order.OrderDate?.ToString(
+                    "dd.MM.yyyy",
+                    CultureInfo.InvariantCulture) ?? "—",
+
+                sortDate = order.OrderDate?.ToString(
+                    "yyyyMMdd",
+                    CultureInfo.InvariantCulture) ?? ""
+            });
+        }
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdatePlan(
+    [FromBody] UpdateProductionOrderPlanRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new
+                {
+                    message = "Некорректные данные запроса."
+                });
+            }
+
+            // Если ваш DbContext называется иначе,
+            // замените _context на имя вашего поля.
+            var order = await _context.ProductionOrders
+                .SingleOrDefaultAsync(x => x.Id == request.Id);
+
+            if (order == null)
+            {
+                return NotFound(new
+                {
+                    message = "Заказ не найден."
+                });
+            }
+
+            // Проверяем статус независимо от наличия кнопки в представлении.
+            if (order.StatusId != 1 && order.StatusId != 2)
+            {
+                return BadRequest(new
+                {
+                    message = "План можно изменять только у редактируемого или созданного заказа."
+                });
+            }
+
+            decimal? plan = null;
+
+            if (!string.IsNullOrWhiteSpace(request.Plan))
+            {
+                var normalizedPlan = request.Plan
+                    .Trim()
+                    .Replace(',', '.');
+
+                var numberStyles =
+                    NumberStyles.AllowDecimalPoint |
+                    NumberStyles.AllowLeadingSign;
+
+                if (!decimal.TryParse(
+                        normalizedPlan,
+                        numberStyles,
+                        CultureInfo.InvariantCulture,
+                        out var parsedPlan))
+                {
+                    return BadRequest(new
+                    {
+                        message = "Введите корректное количество."
+                    });
+                }
+
+                if (parsedPlan < 0)
+                {
+                    return BadRequest(new
+                    {
+                        message = "План не может быть отрицательным."
+                    });
+                }
+
+                plan = parsedPlan;
+            }
+
+            // Меняем только план. Статус, факт и дату не трогаем.
+            order.Plan = plan;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                rawValue = order.Plan?.ToString(
+                    CultureInfo.InvariantCulture) ?? "",
+
+                displayValue = order.Plan?.ToString("N0") ?? "—"
+            });
+        }
+        // МЕТКА1 Общий запрос со связанными данными.
         private IQueryable<ProductionOrder> QueryWithReferences()
         {
             return _context.ProductionOrders
@@ -918,8 +1241,10 @@ namespace Verle.Controllers
             return _context.Set<Nomenclatura>()
                 .Where(x =>
                     x.SkuClassLink != null &&
+                    (x.SkuClassLink.SkuClass.Id
+                        == SemiproductSkuClassId ||
                     x.SkuClassLink.SkuClass.Id
-                        == SemiproductSkuClassId);
+                        ==ProductSkuClassId));
         }
 
         // Справочники для формы редактирования.
@@ -965,23 +1290,6 @@ namespace Verle.Controllers
                 })
                 .ToList();
 
-            var fusos = await _context.Set<Equipment>()
-                .AsNoTracking()
-                .OrderBy(x => x.EquipmentName)
-                .Select(x => new
-                {
-                    x.Id,
-                    x.EquipmentName
-                })
-                .ToListAsync();
-
-            ViewBag.Fusos = fusos
-                .Select(x => new SelectListItem
-                {
-                    Value = x.Id.ToString(),
-                    Text = x.EquipmentName
-                })
-                .ToList();
         }
 
         private static void Normalize(
@@ -1034,7 +1342,7 @@ namespace Verle.Controllers
                     AddModelErrorIfMissing(
                         nameof(model.NomenclaturaId),
                         "Выберите номенклатуру " +
-                        "с классом SKU «Полуфабрикат».");
+                        "с классом SKU «Готовая продукция» или «Полуфабрикат».");
                 }
             }
 
@@ -1048,19 +1356,6 @@ namespace Verle.Controllers
                     AddModelErrorIfMissing(
                         nameof(model.ShiftId),
                         "Выбранная смена не найдена.");
-                }
-            }
-
-            if (model.FusoId.HasValue)
-            {
-                var exists = await _context.Set<Equipment>()
-                    .AnyAsync(x => x.Id == model.FusoId.Value);
-
-                if (!exists)
-                {
-                    AddModelErrorIfMissing(
-                        nameof(model.FusoId),
-                        "Выбранная машина FUSO не найдена.");
                 }
             }
 
@@ -1116,13 +1411,6 @@ namespace Verle.Controllers
                     "Выберите смену.");
             }
 
-            if (!model.FusoId.HasValue)
-            {
-                AddModelErrorIfMissing(
-                    nameof(model.FusoId),
-                    "Выберите машину FUSO.");
-            }
-
             if (!model.Plan.HasValue)
             {
                 AddModelErrorIfMissing(
@@ -1154,11 +1442,9 @@ namespace Verle.Controllers
                 && order.OrderDate.HasValue
                 && order.NomenclaturaId.HasValue
                 && order.ShiftId.HasValue
-                && order.EquipmentId.HasValue
                 && order.Plan.HasValue
                 && order.Nomenclatura != null
-                && order.Shift != null
-                && order.Equipment != null;
+                && order.Shift != null;
         }
 
         // Не отправляем исполняемый неполный заказ в Edit:
@@ -1200,9 +1486,6 @@ namespace Verle.Controllers
                 order.Nomenclatura!.Name;
 
             model.ShiftName = order.Shift!.Name;
-
-            model.FusoNumber =
-                order.Equipment!.EquipmentName;
 
             model.Plan = order.Plan!.Value;
             model.OrderComment = order.Comment;

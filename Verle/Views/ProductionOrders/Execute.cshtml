@@ -10,8 +10,12 @@
     var isCreated = orderStatusId == 2;
     var isInExecution = orderStatusId == 3;
     var isMasterApproval = orderStatusId == 4;
+    var isOperatorApproval = orderStatusId == 5;
+    var isCompleted = orderStatusId == 6;
     var isFactCorrection = orderStatusId == 7;
 
+    var canEditEventComments =
+        isInExecution || isFactCorrection;
     var canEditActual =
         isInExecution || isFactCorrection;
     var isDowntime =
@@ -53,7 +57,11 @@
     };
 
     var orderStatusName = ViewBag.OrderStatusName as string ?? "—";
+    var executionFinished = Model.Events.Any(x =>
+        x.ExecutionStatusId == ExecutionStatusIds.Finished);
+
 }
+
 <style>
     .execution-controls .btn:disabled {
         background-color: #6c757d;
@@ -63,7 +71,13 @@
     }
 </style>
 <h1>@ViewData["Title"]</h1>
-
+@if (isCompleted)
+{
+    <div class="alert alert-success" role="alert">
+        Заказ выполнен и закрыт.
+        Данные доступны только для просмотра.
+    </div>
+}
 @if (TempData["SuccessMessage"] is string successMessage)
 {
     <div class="alert alert-success" role="alert">
@@ -228,6 +242,108 @@
         </button>
     </form>
 </div>
+@*БЛОК ЖУРНАЛ ВЫПОЛНЕНИЯ*@
+<div class="card mt-4">
+    <div class="card-header">
+        Журнал выполнения
+    </div>
+
+    <div class="card-body">
+        @if (Model.Events.Count == 0)
+        {
+            <p class="text-muted mb-0">
+                События выполнения ещё не зафиксированы.
+            </p>
+        }
+        else
+        {
+            @if (canEditEventComments)
+            {
+                <p class="text-muted small">
+                    Комментарии можно добавлять и изменять во время исполнения
+                    и при корректировке фактических данных.
+                    Дата, время и состояние событий изменению не подлежат.
+                    Сохраняйте комментарий кнопкой в соответствующей строке.
+                </p>
+            }
+            else
+            {
+                <p class="text-muted small">
+                    В текущем статусе заказа журнал доступен только для просмотра.
+                </p>
+            }
+
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Дата и время (UTC)</th>
+                            <th scope="col">Состояние</th>
+                            <th scope="col">Комментарий</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var executionEvent in Model.Events)
+                        {
+                            <tr>
+                                <td class="text-nowrap">
+                                    @executionEvent.OccurredAt.ToString("dd.MM.yyyy HH:mm:ss")
+                                </td>
+
+                                <td>
+                                    @executionEvent.StatusName
+                                </td>
+
+                                <td style="min-width: 320px;">
+                                    @if (canEditEventComments)
+                                    {
+                                        <form asp-controller="ProductionOrders"
+                                              asp-action="SaveExecutionEventComment"
+                                              asp-route-id="@Model.Id"
+                                              asp-antiforgery="true"
+                                              method="post"
+                                              class="m-0">
+
+                                            <input type="hidden"
+                                                   name="eventId"
+                                                   value="@executionEvent.Id" />
+
+                                            <label for="event-comment-@executionEvent.Id"
+                                                   class="visually-hidden">
+                                                Комментарий к событию
+                                                @executionEvent.Id
+                                            </label>
+
+                                            <textarea id="event-comment-@executionEvent.Id"
+                                                      name="comment"
+                                                      class="form-control form-control-sm"
+                                                      rows="2"
+                                                      maxlength="1000"
+                                                      placeholder="Например, причина простоя">@executionEvent.Comment</textarea>
+
+                                            <button type="submit"
+                                                    class="btn btn-sm btn-outline-primary mt-2">
+                                                Сохранить
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <div style="white-space: pre-wrap; overflow-wrap: anywhere;">@(string.IsNullOrWhiteSpace(executionEvent.Comment) ? "—" : executionEvent.Comment)</div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+@*КОНЕЦ БЛОКА ЖУРНАЛ ВЫПОЛНЕНИЯ*@
+
+@* БЛОК ДАННЫЕ ИСПОЛНЕНИЯ. *@
 <form id="executionForm"
       asp-controller="ProductionOrders"
       asp-action="Execute"
@@ -242,7 +358,7 @@
 
     <div class="card mb-4">
         <div class="card-header">
-            Данные исполнения
+            Фактическое выполнение заказа
         </div>
 
         <div class="card-body">
@@ -339,47 +455,37 @@
         Вернуться к списку
     </a>
 </div>
-<div class="card mt-4">
-    <div class="card-header">
-        Журнал выполнения
-    </div>
+@* Кнопки операциониста. *@
+@if (isOperatorApproval)
+{
+    <form asp-controller="ProductionOrders"
+          asp-action="RejectByOperator"
+          asp-route-id="@Model.Id"
+          asp-antiforgery="true"
+          method="post"
+          class="m-0">
 
-    <div class="card-body">
-        @if (Model.Events.Count == 0)
-        {
-            <p class="text-muted mb-0">
-                События выполнения ещё не зафиксированы.
-            </p>
-        }
-        else
-        {
-            <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th scope="col">Дата и время (UTC)</th>
-                            <th scope="col">Состояние</th>
-                        </tr>
-                    </thead>
+        <button type="submit"
+                class="btn btn-outline-danger"
+                onclick="return confirm('Вернуть заказ на корректировку фактических данных?');">
+            Скорректировать
+        </button>
+    </form>
 
-                    <tbody>
-                        @foreach (var executionEvent in Model.Events)
-                        {
-                            <tr>
-                                <td>
-                                    @executionEvent.OccurredAt.ToString("dd.MM.yyyy HH:mm:ss")
-                                </td>
-                                <td>
-                                    @executionEvent.StatusName
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-    </div>
-</div>
+    <form asp-controller="ProductionOrders"
+          asp-action="CloseOrder"
+          asp-route-id="@Model.Id"
+          asp-antiforgery="true"
+          method="post"
+          class="m-0">
+
+        <button type="submit"
+                class="btn btn-success"
+                onclick="return confirm('Закрыть заказ? После закрытия редактирование будет недоступно.');">
+            Закрыть
+        </button>
+    </form>
+}
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }

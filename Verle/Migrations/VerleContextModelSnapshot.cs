@@ -530,43 +530,6 @@ namespace Verle.Migrations
                         .IsUnique();
 
                     b.ToTable("orderStatus", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Name = "Редактируется"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Name = "Создан"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Name = "На исполнении"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Name = "На утверждении мастера"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Name = "На утверждении операционистом"
-                        },
-                        new
-                        {
-                            Id = 6,
-                            Name = "Выполнен"
-                        },
-                        new
-                        {
-                            Id = 7,
-                            Name = "На корректировке факта"
-                        });
                 });
 
             modelBuilder.Entity("Verle.Models.Position", b =>
@@ -708,6 +671,11 @@ namespace Verle.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("comment");
 
                     b.Property<int>("ExecutionStatusId")
                         .HasColumnType("integer")

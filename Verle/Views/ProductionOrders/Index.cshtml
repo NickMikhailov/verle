@@ -1,4 +1,6 @@
 ﻿@model System.Collections.Generic.IEnumerable<ProductionOrder>
+@using System.Globalization
+@using System.Linq
 
 @{
     ViewData["Title"] = "Заказы на производство";
@@ -9,7 +11,169 @@
     const int masterApprovalStatusId = 4;
     const int operatorApprovalStatusId = 5;
     const int completedStatusId = 6;
+    const int factCorrectionStatusId = 7;
+
+    var orders = Model.ToList();
+
+    var statusFilters =
+     ViewBag.StatusFilters
+         as System.Collections.Generic.IEnumerable<OrderStatus>
+     ?? System.Array.Empty<OrderStatus>();
 }
+
+<style>
+    #ordersTable .order-sort {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-weight: 600;
+        text-align: inherit;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+        #ordersTable .order-sort:hover {
+            color: var(--bs-primary, #0d6efd);
+        }
+
+        #ordersTable .order-sort:focus-visible {
+            outline: 2px solid var(--bs-primary, #0d6efd);
+            outline-offset: 4px;
+        }
+
+    #ordersTable .sort-indicator {
+        min-width: 1em;
+        color: #6c757d;
+    }
+
+    #ordersTable th[aria-sort="ascending"] .sort-indicator,
+    #ordersTable th[aria-sort="descending"] .sort-indicator {
+        color: var(--bs-primary, #0d6efd);
+    }
+
+    #orderStatusFilters .btn {
+        white-space: nowrap;
+    }
+
+    #ordersTable [hidden] {
+        display: none !important;
+    }
+
+    #orderStatusFilters .status-filter {
+        border: 2px solid transparent;
+    }
+
+        #orderStatusFilters .status-filter.is-selected {
+            border-color: #212529;
+            box-shadow: 0 0 0 2px #fff;
+        }
+
+        #orderStatusFilters .status-filter:focus-visible {
+            outline: 2px solid #212529;
+            outline-offset: 3px;
+        }
+
+    #orderDateFilter {
+        width: 155px;
+    }
+
+    #orderDateFilterToggle.has-date-filter {
+        background-color: var(--bs-primary, #0d6efd);
+        border-color: var(--bs-primary, #0d6efd);
+        color: #fff;
+    }
+
+    #orderDateFilterToggle {
+        border: none;
+        background-color: transparent;
+        color: #6c757d;
+        padding: 0.25rem 0.4rem;
+        box-shadow: none;
+    }
+
+        #orderDateFilterToggle:hover {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+
+        #orderDateFilterToggle:focus {
+            box-shadow: none;
+        }
+
+        #orderDateFilterToggle:focus-visible {
+            outline: 2px solid var(--bs-primary, #0d6efd);
+            outline-offset: 2px;
+        }
+
+        #orderDateFilterToggle.has-date-filter {
+            border: none;
+            background-color: var(--bs-primary, #0d6efd);
+            color: #fff;
+        }
+        #ordersTable .order-date-edit-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: #6c757d;
+    padding: 0.15rem 0.35rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+}
+
+#ordersTable .order-date-edit-toggle:hover {
+    background-color: #e9ecef;
+    color: var(--bs-primary, #0d6efd);
+}
+
+#ordersTable .order-date-edit-toggle:focus-visible {
+    outline: 2px solid var(--bs-primary, #0d6efd);
+    outline-offset: 2px;
+}
+
+#ordersTable .order-date-input {
+    width: 155px;
+}
+
+#ordersTable .order-date-error {
+    max-width: 320px;
+    white-space: normal;
+}
+
+    #ordersTable [data-plan-edit] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.15rem 0.35rem;
+        border: 0;
+        background: transparent;
+        color: #6c757d;
+        box-shadow: none;
+        cursor: pointer;
+    }
+
+        #ordersTable [data-plan-edit]:hover {
+            background: transparent;
+            color: var(--bs-primary, #0d6efd);
+        }
+
+        #ordersTable [data-plan-edit]:focus {
+            outline: none;
+            box-shadow: none;
+        }
+
+        /* Выделение только при навигации с клавиатуры. */
+        #ordersTable [data-plan-edit]:focus-visible {
+            outline: 2px solid var(--bs-primary, #0d6efd);
+            outline-offset: 2px;
+        }
+        </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="mb-0">Заказы на производство</h1>
@@ -39,27 +203,196 @@
     </div>
 }
 
+<div class="mb-3">
+    <div class="fw-semibold mb-2">
+        Фильтр по статусу
+    </div>
+
+    <div id="orderStatusFilters"
+         class="d-flex flex-wrap gap-2"
+         role="group"
+         aria-label="Фильтр заказов по статусу">
+
+        @foreach (var filter in statusFilters)
+        {
+            var count = orders.Count(x => x.StatusId == filter.Id);
+
+            var filterColorClass = filter.Id switch
+            {
+                draftStatusId => "bg-secondary text-white",
+                createdStatusId => "bg-light-brown",
+                inExecutionStatusId => "bg-primary text-white",
+                masterApprovalStatusId => "bg-warning text-dark",
+                operatorApprovalStatusId => "bg-info text-dark",
+                completedStatusId => "bg-success text-white",
+                _ => "bg-secondary text-white"
+            };
+
+            <button type="button"
+                    class="btn btn-sm status-filter @filterColorClass"
+                    data-status-filter="@filter.Id"
+                    aria-pressed="false"
+                    aria-controls="ordersTable">
+                @filter.Name
+                <span class="badge bg-light text-dark ms-1">
+                    @count
+                </span>
+            </button>
+        }
+        <button type="button"
+                class="btn btn-sm status-filter status-filter-all bg-white text-dark is-selected"
+                data-status-filter="all"
+                aria-pressed="true"
+                aria-controls="ordersTable">
+            Все
+
+            <span class="badge bg-light text-dark ms-1">
+                @orders.Count
+            </span>
+        </button>
+        <button type="button"
+                class="btn btn-sm status-filter bg-white text-dark"
+                data-status-filter="unclosed"
+                aria-pressed="false"
+                aria-controls="ordersTable">
+            Все незакрытые
+
+            <span class="badge bg-light text-dark ms-1">
+                @orders.Count(x => x.StatusId != completedStatusId)
+            </span>
+        </button>
+    </div>
+</div>
+
+<div id="ordersSummary"
+     class="small text-muted mb-2"
+     role="status"
+     aria-live="polite">
+    Показано заказов: @orders.Count из @orders.Count
+</div>
+<div id="orderInlineEditToken" hidden>
+    @Html.AntiForgeryToken()
+</div>
+<div id="orderPlanSettings"
+     data-update-url="@Url.Action("UpdatePlan", "ProductionOrders")"
+     hidden>
+    @Html.AntiForgeryToken()
+</div>
 <div class="table-responsive">
-    <table class="table table-striped table-hover align-middle">
+    <table id="ordersTable"
+           data-update-date-url="@Url.Action("UpdateOrderDate", "ProductionOrders")"
+           class="table table-striped table-hover align-middle">
         <thead>
             <tr>
-                <th scope="col">Заказ в 1С</th>
-                <th scope="col">Дата</th>
-                <th scope="col">Номенклатура</th>
-                <th scope="col" class="text-end">План</th>
-                <th scope="col" class="text-end">Факт</th>
-                <th scope="col">Статус</th>
+                <th scope="col" aria-sort="none">
+                    <button type="button"
+                            class="order-sort"
+                            data-sort-key="order"
+                            data-sort-type="text">
+                        Заказ в 1С
+                        <span class="sort-indicator" aria-hidden="true">↕</span>
+                    </button>
+                </th>
+
+                <th scope="col" aria-sort="none">
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button"
+                                class="order-sort"
+                                data-sort-key="date"
+                                data-sort-type="number"
+                                data-default-sort="true">
+                            Дата
+                            <span class="sort-indicator" aria-hidden="true">↕</span>
+                        </button>
+
+                        <button type="button"
+                                id="orderDateFilterToggle"
+                                class="btn btn-sm btn-outline-secondary"
+                                aria-label="Фильтр по дате заказа"
+                                title="Фильтр по дате заказа"
+                                aria-expanded="false"
+                                aria-controls="orderDateFilterPanel">
+                            <span aria-hidden="true">📅</span>
+                        </button>
+                    </div>
+
+                    <div id="orderDateFilterPanel"
+                         class="mt-2"
+                         hidden>
+                        <label for="orderDateFilter"
+                               class="visually-hidden">
+                            Дата заказа
+                        </label>
+
+                        <div class="d-flex align-items-center gap-1">
+                            <input type="date"
+                                   id="orderDateFilter"
+                                   class="form-control form-control-sm"
+                                   aria-controls="ordersTable" />
+
+                            <button type="button"
+                                    id="clearOrderDateFilter"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    aria-label="Сбросить фильтр по дате"
+                                    title="Сбросить фильтр по дате"
+                                    disabled>
+                                <span aria-hidden="true">×</span>
+                            </button>
+                        </div>
+                    </div>
+                </th>
+
+                <th scope="col" aria-sort="none">
+                    <button type="button"
+                            class="order-sort"
+                            data-sort-key="nomenclature"
+                            data-sort-type="text">
+                        Номенклатура
+                        <span class="sort-indicator" aria-hidden="true">↕</span>
+                    </button>
+                </th>
+
+                <th scope="col" class="text-end" aria-sort="none">
+                    <button type="button"
+                            class="order-sort"
+                            data-sort-key="plan"
+                            data-sort-type="number">
+                        План
+                        <span class="sort-indicator" aria-hidden="true">↕</span>
+                    </button>
+                </th>
+
+                <th scope="col" class="text-end" aria-sort="none">
+                    <button type="button"
+                            class="order-sort"
+                            data-sort-key="actual"
+                            data-sort-type="number">
+                        Факт
+                        <span class="sort-indicator" aria-hidden="true">↕</span>
+                    </button>
+                </th>
+
+                <th scope="col" aria-sort="none">
+                    <button type="button"
+                            class="order-sort"
+                            data-sort-key="status"
+                            data-sort-type="number">
+                        Статус
+                        <span class="sort-indicator" aria-hidden="true">↕</span>
+                    </button>
+                </th>
+
                 <th scope="col">Действие</th>
             </tr>
         </thead>
 
         <tbody>
-            @foreach (var item in Model)
+            @foreach (var item in orders)
             {
                 var statusBadgeClass = item.StatusId switch
                 {
                     draftStatusId => "bg-secondary",
-                    createdStatusId => "bg-secondary",
+                    createdStatusId => "bg-light-brown",
                     inExecutionStatusId => "bg-primary",
                     masterApprovalStatusId => "bg-warning text-dark",
                     operatorApprovalStatusId => "bg-info text-dark",
@@ -67,7 +400,28 @@
                     _ => "bg-secondary"
                 };
 
-                <tr>
+                var nomenclatureSortValue = item.Nomenclatura?.Name ?? "";
+
+                var dateSortValue = item.OrderDate?
+                .ToString("yyyyMMdd", CultureInfo.InvariantCulture) ?? "";
+
+                var planSortValue = item.Plan?
+                .ToString(CultureInfo.InvariantCulture) ?? "";
+
+                var actualSortValue = item.Execution == null
+                ? ""
+                : item.Execution.Actual.ToString(CultureInfo.InvariantCulture);
+
+                <tr data-order-row
+                    data-order-id="@item.Id"
+                    data-status-id="@item.StatusId"
+                    data-order="@item.Id1C"
+                    data-date="@dateSortValue"
+                    data-nomenclature="@nomenclatureSortValue"
+                    data-plan="@planSortValue"
+                    data-actual="@actualSortValue"
+                    data-status="@(item.Status?.Name ?? "")">
+
                     <td class="text-nowrap">
                         @(string.IsNullOrWhiteSpace(item.Id1C)
                             ? "—"
@@ -75,9 +429,58 @@
                     </td>
 
                     <td class="text-nowrap">
-                        <div>
-                            @(item.OrderDate?.ToString("dd.MM.yyyy") ?? "—")
+                        <div class="d-flex align-items-center gap-1"
+                             data-date-display>
+                            <span data-date-text>
+                                @(item.OrderDate?.ToString("dd.MM.yyyy") ?? "—")
+                            </span>
+
+                            @if (item.StatusId == draftStatusId ||
+                           item.StatusId == createdStatusId)
+                            {
+                                <button type="button"
+                                        class="order-date-edit-toggle"
+                                        data-date-edit
+                                        aria-label="Изменить дату заказа"
+                                        aria-expanded="false"
+                                        title="Изменить дату заказа">
+                                    <span aria-hidden="true">✎</span>
+                                </button>
+                            }
                         </div>
+
+                        @if (item.StatusId == draftStatusId ||
+                       item.StatusId == createdStatusId)
+                        {
+                            <div data-date-editor hidden>
+                                <div class="d-flex flex-wrap align-items-center gap-1">
+                                    <input type="date"
+                                           class="form-control form-control-sm order-date-input"
+                                           min="0001-01-01"
+                                           max="9999-12-31"
+                                           data-date-input
+                                           aria-label="Новая дата заказа" />
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-success"
+                                            data-date-save>
+                                        Сохранить
+                                    </button>
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            data-date-cancel>
+                                        Отмена
+                                    </button>
+                                </div>
+
+                                <div class="small text-danger mt-1 order-date-error"
+                                     data-date-error
+                                     role="alert"
+                                     hidden>
+                                </div>
+                            </div>
+                        }
 
                         <div class="small text-muted">
                             @(item.Shift?.Name ?? "—")
@@ -94,8 +497,65 @@
                         </div>
                     </td>
 
-                    <td class="text-end text-nowrap">
-                        @(item.Plan?.ToString("N0") ?? "—")
+                    <td class="text-end text-nowrap" data-plan-cell>
+                        <div class="d-flex justify-content-end align-items-center gap-2"
+                             data-plan-display>
+
+                            <span data-plan-text>
+                                @(item.Plan?.ToString("N0") ?? "—")
+                            </span>
+
+                            @if (item.StatusId == draftStatusId ||
+                           item.StatusId == createdStatusId)
+                            {
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        data-plan-edit
+                                        title="Изменить план"
+                                        aria-label="Изменить план заказа">
+                                    ✎
+                                </button>
+                            }
+                        </div>
+
+                        @if (item.StatusId == draftStatusId ||
+                       item.StatusId == createdStatusId)
+                        {
+                            <div data-plan-editor hidden>
+                                <div class="d-flex justify-content-end align-items-center gap-1">
+                                    <input type="text"
+                                           class="form-control form-control-sm text-end"
+                                           style="width: 140px;"
+                                           inputmode="decimal"
+                                           autocomplete="off"
+                                           aria-label="Плановое количество"
+                                           data-plan-input />
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-success"
+                                            data-plan-save
+                                            title="Сохранить план"
+                                            aria-label="Сохранить план">
+                                        ✓
+                                    </button>
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            data-plan-cancel
+                                            title="Отменить изменение"
+                                            aria-label="Отменить изменение плана">
+                                        ✕
+                                    </button>
+                                </div>
+
+                                <div class="small text-danger mt-1"
+                                     style="max-width: 300px; white-space: normal;"
+                                     role="alert"
+                                     data-plan-error
+                                     hidden>
+                                </div>
+                            </div>
+                        }
                     </td>
 
                     <td class="text-end text-nowrap">
@@ -118,7 +578,7 @@
                                 <a asp-action="Edit"
                                    asp-route-id="@item.Id"
                                    class="btn btn-sm btn-outline-primary text-nowrap">
-                                    Изменить
+                                    Редактировать
                                 </a>
                             }
 
@@ -130,7 +590,8 @@
                                     Выполнить
                                 </a>
                             }
-                            else if (item.StatusId == inExecutionStatusId)
+
+                            @if (item.StatusId == inExecutionStatusId)
                             {
                                 <a asp-action="Execute"
                                    asp-route-id="@item.Id"
@@ -138,12 +599,15 @@
                                     Открыть исполнение
                                 </a>
                             }
-                            else if (item.StatusId == masterApprovalStatusId ||
-                            item.StatusId == operatorApprovalStatusId)
+
+                            @if (item.StatusId == masterApprovalStatusId ||
+                           item.StatusId == operatorApprovalStatusId ||
+                           item.StatusId == factCorrectionStatusId ||
+                           item.StatusId == completedStatusId)
                             {
                                 <a asp-action="Execute"
                                    asp-route-id="@item.Id"
-                                   class="btn btn-sm btn-outline-success text-nowrap">
+                                   class="btn btn-sm btn-outline-secondary text-nowrap">
                                     Просмотреть заказ
                                 </a>
                             }
@@ -151,6 +615,722 @@
                     </td>
                 </tr>
             }
+
+            <tr id="ordersEmptyRow" hidden="@(orders.Count > 0)">
+                <td colspan="7" class="text-center text-muted py-4">
+                    Заказы не найдены.
+                </td>
+            </tr>
         </tbody>
     </table>
 </div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const table = document.getElementById('ordersTable');
+            const filters = document.getElementById('orderStatusFilters');
+
+            if (!table || !filters) {
+                return;
+            }
+
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(
+                tbody.querySelectorAll('[data-order-row]')
+            );
+
+            const emptyRow = document.getElementById('ordersEmptyRow');
+            const summary = document.getElementById('ordersSummary');
+
+            const dateFilterToggle =
+                document.getElementById('orderDateFilterToggle');
+
+            const dateFilterPanel =
+                document.getElementById('orderDateFilterPanel');
+
+            const dateFilterInput =
+                document.getElementById('orderDateFilter');
+
+            const clearDateFilterButton =
+                document.getElementById('clearOrderDateFilter');
+
+            const tokenInput = document.querySelector(
+                '#orderInlineEditToken input[name="__RequestVerificationToken"]'
+            );
+
+            const filterButtons = Array.from(
+                filters.querySelectorAll('[data-status-filter]')
+            );
+
+            const sortButtons = Array.from(
+                table.querySelectorAll('[data-sort-key]')
+            );
+
+            const originalPositions = new Map(
+                rows.map((row, index) => [row, index])
+            );
+
+            const collator = new Intl.Collator('ru', {
+                numeric: true,
+                sensitivity: 'base'
+            });
+
+            let selectedStatus = 'all';
+            let currentSortKey = 'date';
+            let currentSortDirection = 'desc';
+
+            // Преобразование yyyyMMdd в yyyy-MM-dd без часовых поясов.
+            function toInputDate(dateKey) {
+                if (!dateKey) {
+                    return '';
+                }
+
+                return (
+                    dateKey.slice(0, 4) + '-' +
+                    dateKey.slice(4, 6) + '-' +
+                    dateKey.slice(6, 8)
+                );
+            }
+
+            // Фильтрация одновременно по статусу и дате.
+            // Здесь не регистрируем обработчики событий.
+            function applyFilter() {
+                let visibleCount = 0;
+
+                const selectedDate = dateFilterInput.value;
+                const selectedDateKey = selectedDate.replace(/-/g, '');
+
+                rows.forEach(row => {
+                    const matchesStatus =
+                        selectedStatus === 'all' ||
+                        (
+                            selectedStatus === 'unclosed' &&
+                            row.dataset.statusId !== '6'
+                        ) ||
+                        row.dataset.statusId === selectedStatus;
+                    const matchesDate =
+                        selectedDateKey === '' ||
+                        row.dataset.date === selectedDateKey;
+
+                    const visible = matchesStatus && matchesDate;
+
+                    row.hidden = !visible;
+
+                    if (visible) {
+                        visibleCount++;
+                    }
+                });
+
+                filterButtons.forEach(button => {
+                    const active =
+                        button.dataset.statusFilter === selectedStatus;
+
+                    button.classList.toggle('is-selected', active);
+                    button.setAttribute('aria-pressed', String(active));
+                });
+
+                const hasDateFilter = selectedDate !== '';
+
+                dateFilterToggle.classList.toggle(
+                    'has-date-filter',
+                    hasDateFilter
+                );
+
+                clearDateFilterButton.disabled = !hasDateFilter;
+                emptyRow.hidden = visibleCount > 0;
+
+                let summaryText =
+                    `Показано заказов: ${visibleCount} из ${rows.length}`;
+
+                let filterTitle = 'Фильтр по дате заказа';
+
+                if (hasDateFilter) {
+                    const [year, month, day] = selectedDate.split('-');
+                    const formattedDate = `${day}.${month}.${year}`;
+
+                    summaryText += ` · Дата заказа: ${formattedDate}`;
+                    filterTitle += `: ${formattedDate}`;
+                }
+
+                dateFilterToggle.title = filterTitle;
+                dateFilterToggle.setAttribute('aria-label', filterTitle);
+
+                summary.textContent = summaryText;
+            }
+
+            // Пустые значения всегда находятся в конце.
+            function compareRows(rowA, rowB, key, type, direction) {
+                const valueA = key === 'status'
+                    ? (rowA.dataset.statusId ?? '').trim()
+                    : (rowA.getAttribute(`data-${key}`) ?? '').trim();
+
+                const valueB = key === 'status'
+                    ? (rowB.dataset.statusId ?? '').trim()
+                    : (rowB.getAttribute(`data-${key}`) ?? '').trim();
+
+                if (valueA === '' && valueB === '') {
+                    return 0;
+                }
+
+                if (valueA === '') {
+                    return 1;
+                }
+
+                if (valueB === '') {
+                    return -1;
+                }
+
+                const comparison = type === 'number'
+                    ? Number(valueA) - Number(valueB)
+                    : collator.compare(valueA, valueB);
+
+                return direction === 'asc'
+                    ? comparison
+                    : -comparison;
+            }
+
+            // Применяет сортировку, не переключая направление.
+            // Используется и после сохранения новой даты.
+            function applySort() {
+                const activeButton = sortButtons.find(
+                    button => button.dataset.sortKey === currentSortKey
+                );
+
+                if (!activeButton) {
+                    return;
+                }
+
+                const type = activeButton.dataset.sortType;
+
+                rows.sort((rowA, rowB) => {
+                    const comparison = compareRows(
+                        rowA,
+                        rowB,
+                        currentSortKey,
+                        type,
+                        currentSortDirection
+                    );
+
+                    return comparison ||
+                        originalPositions.get(rowA) -
+                        originalPositions.get(rowB);
+                });
+
+                const fragment = document.createDocumentFragment();
+
+                rows.forEach(row => fragment.appendChild(row));
+                fragment.appendChild(emptyRow);
+                tbody.appendChild(fragment);
+
+                sortButtons.forEach(button => {
+                    const active = button === activeButton;
+                    const header = button.closest('th');
+
+                    header.setAttribute(
+                        'aria-sort',
+                        active
+                            ? (
+                                currentSortDirection === 'asc'
+                                    ? 'ascending'
+                                    : 'descending'
+                            )
+                            : 'none'
+                    );
+
+                    button.querySelector('.sort-indicator').textContent =
+                        active
+                            ? (
+                                currentSortDirection === 'asc'
+                                    ? '↑'
+                                    : '↓'
+                            )
+                            : '↕';
+                });
+            }
+
+            // Фильтр статусов.
+            filterButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    selectedStatus = button.dataset.statusFilter;
+                    applyFilter();
+                });
+            });
+
+            // Календарь фильтра в заголовке.
+            dateFilterToggle.addEventListener('click', () => {
+                // При выбранной дате поле оставляем видимым.
+                const shouldOpen =
+                    dateFilterInput.value !== '' ||
+                    dateFilterPanel.hidden;
+
+                dateFilterPanel.hidden = !shouldOpen;
+
+                dateFilterToggle.setAttribute(
+                    'aria-expanded',
+                    String(shouldOpen)
+                );
+
+                if (shouldOpen) {
+                    dateFilterInput.focus();
+
+                    if (typeof dateFilterInput.showPicker === 'function') {
+                        try {
+                            dateFilterInput.showPicker();
+                        } catch {
+                            // Поле даты остаётся доступным.
+                        }
+                    }
+                }
+            });
+
+            dateFilterInput.addEventListener('change', applyFilter);
+
+            // Сброс даты скрывает поле и оставляет только иконку.
+            clearDateFilterButton.addEventListener('click', () => {
+                dateFilterInput.value = '';
+                dateFilterPanel.hidden = true;
+
+                dateFilterToggle.setAttribute(
+                    'aria-expanded',
+                    'false'
+                );
+
+                applyFilter();
+                dateFilterToggle.focus();
+            });
+
+            // Сортировка по нажатию заголовка.
+            sortButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const key = button.dataset.sortKey;
+
+                    if (currentSortKey === key) {
+                        currentSortDirection =
+                            currentSortDirection === 'asc'
+                                ? 'desc'
+                                : 'asc';
+                    } else {
+                        currentSortKey = key;
+                        currentSortDirection = 'asc';
+                    }
+
+                    applySort();
+                });
+            });
+
+            // Редактирование даты в строках таблицы.
+            rows.forEach(row => {
+                const editButton = row.querySelector('[data-date-edit]');
+
+                if (!editButton) {
+                    return;
+                }
+
+                const display = row.querySelector('[data-date-display]');
+                const dateText = row.querySelector('[data-date-text]');
+                const editor = row.querySelector('[data-date-editor]');
+                const input = row.querySelector('[data-date-input]');
+                const saveButton = row.querySelector('[data-date-save]');
+                const cancelButton = row.querySelector('[data-date-cancel]');
+                const error = row.querySelector('[data-date-error]');
+
+                let saving = false;
+                let expectedOrderDate = '';
+                let expectedStatusId = '';
+
+                function showError(message) {
+                    error.textContent = message;
+                    error.hidden = false;
+                }
+
+                function clearError() {
+                    error.textContent = '';
+                    error.hidden = true;
+                }
+
+                function closeEditor(returnFocus = true) {
+                    editor.hidden = true;
+                    display.hidden = false;
+                    editButton.setAttribute('aria-expanded', 'false');
+
+                    clearError();
+
+                    if (returnFocus && !row.hidden) {
+                        editButton.focus();
+                    }
+                }
+
+                editButton.addEventListener('click', () => {
+                    expectedOrderDate = toInputDate(row.dataset.date);
+                    expectedStatusId = row.dataset.statusId;
+
+                    input.value = expectedOrderDate;
+
+                    // Для статуса 2 дата обязательна.
+                    input.required = expectedStatusId === '2';
+
+                    clearError();
+
+                    display.hidden = true;
+                    editor.hidden = false;
+                    editButton.setAttribute('aria-expanded', 'true');
+
+                    input.focus();
+                });
+
+                cancelButton.addEventListener('click', () => {
+                    if (!saving) {
+                        closeEditor();
+                    }
+                });
+
+                input.addEventListener('keydown', event => {
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+
+                        if (!saving) {
+                            closeEditor();
+                        }
+                    }
+
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+
+                        if (!saving) {
+                            saveButton.click();
+                        }
+                    }
+                });
+
+                saveButton.addEventListener('click', async () => {
+                    if (saving) {
+                        return;
+                    }
+
+                    clearError();
+
+                    if (!input.reportValidity()) {
+                        return;
+                    }
+
+                    if (input.value === expectedOrderDate) {
+                        closeEditor();
+                        return;
+                    }
+
+                    if (!tokenInput || !table.dataset.updateDateUrl) {
+                        showError(
+                            'Не удалось подготовить запрос. Обновите страницу.'
+                        );
+                        return;
+                    }
+
+                    const formData = new FormData();
+
+                    formData.append('id', row.dataset.orderId);
+                    formData.append('orderDate', input.value);
+
+                    formData.append(
+                        'expectedOrderDate',
+                        expectedOrderDate
+                    );
+
+                    formData.append(
+                        'expectedStatusId',
+                        expectedStatusId
+                    );
+
+                    formData.append(
+                        '__RequestVerificationToken',
+                        tokenInput.value
+                    );
+
+                    saving = true;
+
+                    input.disabled = true;
+                    saveButton.disabled = true;
+                    cancelButton.disabled = true;
+                    editor.setAttribute('aria-busy', 'true');
+
+                    const originalButtonText = saveButton.textContent;
+                    saveButton.textContent = 'Сохранение…';
+
+                    try {
+                        const response = await fetch(
+                            table.dataset.updateDateUrl,
+                            {
+                                method: 'POST',
+                                body: formData,
+                                credentials: 'same-origin',
+                                headers: {
+                                    'Accept': 'application/json'
+                                }
+                            }
+                        );
+
+                        const contentType =
+                            response.headers.get('content-type') ?? '';
+
+                        const result = contentType.includes('application/json')
+                            ? await response.json()
+                            : null;
+
+                        if (!response.ok || response.redirected) {
+                            throw new Error(
+                                result?.message ||
+                                'Не удалось сохранить дату. ' +
+                                'Обновите страницу и повторите действие.'
+                            );
+                        }
+
+                        if (
+                            !result ||
+                            typeof result.orderDate !== 'string' ||
+                            typeof result.displayDate !== 'string' ||
+                            typeof result.sortDate !== 'string'
+                        ) {
+                            throw new Error(
+                                'Неожиданный ответ сервера. Обновите страницу.'
+                            );
+                        }
+
+                        // Обновляем только после подтверждения сервера.
+                        dateText.textContent = result.displayDate;
+                        row.dataset.date = result.sortDate;
+                        input.value = result.orderDate;
+
+                        closeEditor(false);
+
+                        // Сохраняем текущий столбец и направление сортировки.
+                        applySort();
+                        applyFilter();
+
+                        if (row.hidden) {
+                            dateFilterToggle.focus();
+                        } else {
+                            editButton.focus();
+                        }
+                    } catch (exception) {
+                        showError(
+                            exception instanceof Error
+                                ? exception.message
+                                : 'Ошибка сохранения. Обновите страницу.'
+                        );
+                    } finally {
+                        saving = false;
+
+                        input.disabled = false;
+                        saveButton.disabled = false;
+                        cancelButton.disabled = false;
+                        editor.removeAttribute('aria-busy');
+
+                        saveButton.textContent = originalButtonText;
+                    }
+                });
+            });
+
+            // При открытии страницы новые заказы сверху.
+            applySort();
+            applyFilter();
+        })();
+    </script>
+    <script>
+        (() => {
+            const table = document.getElementById('ordersTable');
+            const settings = document.getElementById('orderPlanSettings');
+
+            if (!table || !settings) {
+                return;
+            }
+
+            const tokenInput = settings.querySelector(
+                'input[name="__RequestVerificationToken"]'
+            );
+
+            function showError(cell, message) {
+                const error = cell.querySelector('[data-plan-error]');
+
+                error.textContent = message;
+                error.hidden = !message;
+            }
+
+            function setBusy(cell, busy) {
+                cell.dataset.planBusy = busy ? 'true' : 'false';
+
+                cell.querySelectorAll(
+                    '[data-plan-editor] input, [data-plan-editor] button'
+                ).forEach(element => {
+                    element.disabled = busy;
+                });
+            }
+
+            function openEditor(cell) {
+                const row = cell.closest('[data-order-row]');
+                const input = cell.querySelector('[data-plan-input]');
+
+                // Берём исходный decimal, а не округлённый текст из ячейки.
+                input.value = row.dataset.plan ?? '';
+
+                showError(cell, '');
+
+                cell.querySelector('[data-plan-display]').hidden = true;
+                cell.querySelector('[data-plan-editor]').hidden = false;
+
+                input.focus();
+                input.select();
+            }
+
+            function closeEditor(cell) {
+                cell.querySelector('[data-plan-editor]').hidden = true;
+                cell.querySelector('[data-plan-display]').hidden = false;
+
+                showError(cell, '');
+
+                cell.querySelector('[data-plan-edit]')?.focus();
+            }
+
+            async function savePlan(cell) {
+                if (cell.dataset.planBusy === 'true') {
+                    return;
+                }
+
+                const row = cell.closest('[data-order-row]');
+                const input = cell.querySelector('[data-plan-input]');
+
+                const value = input.value
+                    .trim()
+                    .replace(',', '.');
+
+                showError(cell, '');
+
+                // Точную проверку диапазона decimal выполняет сервер.
+                if (value !== '' &&
+                    !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value)) {
+                    showError(cell, 'Введите корректное количество.');
+                    input.focus();
+                    return;
+                }
+
+                if (!tokenInput) {
+                    showError(
+                        cell,
+                        'Не найден защитный токен. Обновите страницу.'
+                    );
+                    return;
+                }
+
+                setBusy(cell, true);
+
+                let saved = false;
+
+                try {
+                    const response = await fetch(settings.dataset.updateUrl, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'RequestVerificationToken': tokenInput.value
+                        },
+                        body: JSON.stringify({
+                            id: Number(row.dataset.orderId),
+                            plan: value === '' ? null : value
+                        })
+                    });
+
+                    const contentType = response.headers.get('content-type') ?? '';
+
+                    const result = contentType.includes('application/json')
+                        ? await response.json()
+                        : null;
+
+                    if (!response.ok || response.redirected) {
+                        throw new Error(
+                            result?.message ??
+                            'Не удалось сохранить план. Проверьте доступ или обновите страницу.'
+                        );
+                    }
+
+                    if (!result ||
+                        typeof result.rawValue !== 'string' ||
+                        typeof result.displayValue !== 'string') {
+                        throw new Error(
+                            'Получен неожиданный ответ сервера. Обновите страницу.'
+                        );
+                    }
+
+                    // Обновляем исходное значение для последующей сортировки.
+                    row.dataset.plan = result.rawValue;
+
+                    cell.querySelector('[data-plan-text]').textContent =
+                        result.displayValue;
+
+                    saved = true;
+                } catch (error) {
+                    showError(
+                        cell,
+                        error instanceof Error
+                            ? error.message
+                            : 'Ошибка сохранения плана.'
+                    );
+                } finally {
+                    setBusy(cell, false);
+                }
+
+                if (saved) {
+                    closeEditor(cell);
+                }
+            }
+
+            table.addEventListener('click', event => {
+                if (!(event.target instanceof Element)) {
+                    return;
+                }
+
+                const button = event.target.closest(
+                    '[data-plan-edit], [data-plan-save], [data-plan-cancel]'
+                );
+
+                if (!button) {
+                    return;
+                }
+
+                const cell = button.closest('[data-plan-cell]');
+
+                if (!cell || cell.dataset.planBusy === 'true') {
+                    return;
+                }
+
+                if (button.hasAttribute('data-plan-edit')) {
+                    openEditor(cell);
+                } else if (button.hasAttribute('data-plan-save')) {
+                    void savePlan(cell);
+                } else {
+                    closeEditor(cell);
+                }
+            });
+
+            table.addEventListener('keydown', event => {
+                if (!(event.target instanceof Element) ||
+                    !event.target.matches('[data-plan-input]')) {
+                    return;
+                }
+
+                const cell = event.target.closest('[data-plan-cell]');
+
+                if (!cell || cell.dataset.planBusy === 'true') {
+                    return;
+                }
+
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void savePlan(cell);
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeEditor(cell);
+                }
+            });
+        })();
+    </script>
+}
