@@ -716,6 +716,10 @@ namespace Verle.Data
                     .HasColumnName("executionStatusId")
                     .IsRequired();
 
+                entity.Property(x => x.Comment)
+                    .HasColumnName("comment")
+                    .HasMaxLength(1000);
+
                 entity.HasOne(x => x.Order)
                     .WithMany()
                     .HasForeignKey(x => x.OrderId)
@@ -804,44 +808,7 @@ namespace Verle.Data
 
                 entity.HasIndex(x => x.Name)
                     .IsUnique();
-
-                entity.HasData(
-                    new OrderStatus
-                    {
-                        Id = 1,
-                        Name = "Редактируется"
-                    },
-                    new OrderStatus
-                    {
-                        Id = 2,
-                        Name = "Создан"
-                    },
-                    new OrderStatus
-                    {
-                        Id = 3,
-                        Name = "На исполнении"
-                    },
-                    new OrderStatus
-                    {
-                        Id = 4,
-                        Name = "На утверждении мастера"
-                    },
-                    new OrderStatus
-                    {
-                        Id = 5,
-                        Name = "На утверждении операционистом"
-                    },
-                    new OrderStatus
-                    {
-                        Id = 6,
-                        Name = "Выполнен"
-                    },
-                    new OrderStatus
-                    {
-                        Id = 7,
-                        Name = "На корректировке факта"
-                    }
-                );
+                
             });
             modelBuilder.Entity<ProductionUnit>(entity =>
             {

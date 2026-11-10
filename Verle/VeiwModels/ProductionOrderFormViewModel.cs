@@ -20,9 +20,6 @@ namespace Verle.ViewModels
         [Display(Name = "Смена")]
         public int? ShiftId { get; set; }
 
-        [Display(Name = "Машина FUSO")]
-        public int? FusoId { get; set; }
-
         [Display(Name = "Комментарий")]
         public string? Comment { get; set; }
 

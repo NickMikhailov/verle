@@ -20,3 +20,8 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+.bg-light-brown {
+    background-color: #d2b48c;
+    color: #3b2a1a;
+}

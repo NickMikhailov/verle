@@ -194,24 +194,6 @@
     </div>
 </div>
 
-@* Последняя строка: машина FUSO. *@
-<div class="row">
-    <div class="col-12 mb-3">
-        <label asp-for="FusoId" class="form-label">
-            Машина FUSO
-        </label>
-
-        <select asp-for="FusoId"
-                asp-items="ViewBag.Fusos"
-                class="form-select">
-            <option value="">— Выберите машину —</option>
-        </select>
-
-        <span asp-validation-for="FusoId"
-              class="text-danger"></span>
-    </div>
-</div>
-
 <script>
     (() => {
         const nomenclaturas = @Html.Raw(

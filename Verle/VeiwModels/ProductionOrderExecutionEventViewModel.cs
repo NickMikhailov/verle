@@ -11,5 +11,7 @@ namespace Verle.ViewModels
         public int ExecutionStatusId { get; set; }
 
         public string StatusName { get; set; } = string.Empty;
+
+        public string? Comment { get; set; }
     }
 }
